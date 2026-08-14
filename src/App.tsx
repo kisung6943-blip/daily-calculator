@@ -359,6 +359,7 @@ export default function App() {
         {currentTab === 'cost_master' && (
           <CostMasterView
             costItems={costItems}
+            orders={orders}
             onAddCostItem={handleAddCostItem}
             onUpdateCostItem={handleUpdateCostItem}
             onDeleteCostItem={handleDeleteCostItem}

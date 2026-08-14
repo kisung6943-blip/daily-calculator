@@ -20,39 +20,49 @@ export function findMatchingCost(
   optionName: string,
   costItems: CostItem[]
 ): { cost: number; isMatched: boolean; matchedItem?: CostItem } {
-  if (!productName) return { cost: 0, isMatched: false };
+  if (!productName || !costItems || costItems.length === 0) return { cost: 0, isMatched: false };
 
-  const normProduct = normalizeText(productName);
+  // Strip leading product numbers (e.g. 12345678_ 또는 [12345])
+  const cleanProductStr = productName.replace(/^\d+[_\s]+/, '').replace(/^\[\d+\][_\s]*/, '');
+  const normProduct = normalizeText(cleanProductStr);
   const normOption = normalizeText(optionName);
+
+  // Helper to check if an option name is considered a default/universal option
+  const isDefaultOption = (opt: string) => {
+    const o = normalizeText(opt);
+    return !o || o === '기본' || o === '선택없음' || o === '단품' || o === '일반' || o === 'default';
+  };
 
   // 1. Exact match (Product + Option)
   let found = costItems.find((item) => {
     const itemP = normalizeText(item.productName);
     const itemO = normalizeText(item.optionName);
-    return itemP === normProduct && (itemO === normOption || (!normOption && !itemO));
+    return itemP === normProduct && (itemO === normOption || isDefaultOption(item.optionName) || isDefaultOption(optionName));
   });
 
   if (found) {
     return { cost: found.cost, isMatched: true, matchedItem: found };
   }
 
-  // 2. Exact product name match (if option is empty or "기본")
+  // 2. Product Substring matching (contains product name)
   found = costItems.find((item) => {
     const itemP = normalizeText(item.productName);
-    return itemP === normProduct;
-  });
-
-  if (found) {
-    return { cost: found.cost, isMatched: true, matchedItem: found };
-  }
-
-  // 3. Substring matching: product name contains cost product name and option matches
-  found = costItems.find((item) => {
-    const itemP = normalizeText(item.productName);
-    const itemO = normalizeText(item.optionName);
+    if (!itemP) return false;
     const pMatch = normProduct.includes(itemP) || itemP.includes(normProduct);
-    const oMatch = !itemO || !normOption || normOption.includes(itemO) || itemO.includes(normOption);
+    const itemO = normalizeText(item.optionName);
+    const oMatch = isDefaultOption(item.optionName) || isDefaultOption(optionName) || normOption.includes(itemO) || itemO.includes(normOption);
     return pMatch && oMatch;
+  });
+
+  if (found) {
+    return { cost: found.cost, isMatched: true, matchedItem: found };
+  }
+
+  // 3. Fallback: Match by Product Name alone if cost item option is default
+  found = costItems.find((item) => {
+    const itemP = normalizeText(item.productName);
+    if (!itemP) return false;
+    return (normProduct.includes(itemP) || itemP.includes(normProduct)) && item.cost > 0;
   });
 
   if (found) {
