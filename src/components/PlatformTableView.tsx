@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   AlertTriangle, 
   Check, 
   ChevronDown, 
+  Coins,
   Download, 
   Edit3, 
   FileSpreadsheet, 
   Filter, 
   Layers, 
+  Megaphone,
   Plus, 
   Search, 
   Sparkles, 
+  Target,
   Trash2, 
   Truck, 
   UploadCloud 
@@ -26,11 +29,13 @@ interface PlatformTableViewProps {
   costItems: CostItem[];
   settings: SettlementSettings;
   selectedDate: string;
+  adSpends: Record<string, number>;
   onUpdateOrder: (updated: OrderItem) => void;
   onDeleteOrder: (id: string) => void;
   onAddOrder: (newOrder: OrderItem) => void;
   onOpenQuickCostModal: (order: OrderItem) => void;
   onOpenUploadModal: () => void;
+  onUpdateAdSpend: (platform: PlatformType, date: string, amount: number) => void;
 }
 
 export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
@@ -39,15 +44,20 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
   costItems,
   settings,
   selectedDate,
+  adSpends,
   onUpdateOrder,
   onDeleteOrder,
   onAddOrder,
   onOpenQuickCostModal,
   onOpenUploadModal,
+  onUpdateAdSpend,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+
+  const [isEditingAdSpend, setIsEditingAdSpend] = useState(false);
+  const [adSpendInputText, setAdSpendInputText] = useState('');
 
   const platformConfig = PLATFORMS[platform] || PLATFORMS.smartstore;
 
@@ -65,6 +75,31 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
     );
   });
 
+  // Compute Current Platform Ad Spend
+  const getCurrentAdSpend = (): number => {
+    if (selectedDate === 'all') {
+      if (adSpends[`${platform}__all`] !== undefined && adSpends[`${platform}__all`] > 0) {
+        return adSpends[`${platform}__all`];
+      }
+      let sum = 0;
+      Object.keys(adSpends).forEach((k) => {
+        if (k.startsWith(`${platform}__`) && k !== `${platform}__all`) {
+          sum += adSpends[k] || 0;
+        }
+      });
+      return sum;
+    }
+    return adSpends[`${platform}__${selectedDate}`] || 0;
+  };
+
+  const currentAdSpend = getCurrentAdSpend();
+
+  useEffect(() => {
+    if (!isEditingAdSpend) {
+      setAdSpendInputText(currentAdSpend ? String(currentAdSpend) : '');
+    }
+  }, [currentAdSpend, isEditingAdSpend]);
+
   // Calculate Column Totals
   const sumTotalSales = filteredOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
   const sumProductSales = filteredOrders.reduce((sum, o) => sum + o.totalPrice, 0);
@@ -79,6 +114,10 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
   const sumIncomeTax = filteredOrders.reduce((sum, o) => sum + o.incomeTax, 0);
   const sumNetProfit = filteredOrders.reduce((sum, o) => sum + o.netProfit, 0);
   const avgMargin = sumTotalSales > 0 ? Math.round((sumNetProfit / sumTotalSales) * 100) : 0;
+
+  // Real profit & margin after deducting ad spend
+  const netProfitAfterAd = sumNetProfit - currentAdSpend;
+  const realMarginAfterAd = sumTotalSales > 0 ? Math.round((netProfitAfterAd / sumTotalSales) * 100) : 0;
 
   // Cell Edit Handlers
   const handleStartEdit = (order: OrderItem, field: string, currentValue: any) => {
@@ -206,35 +245,89 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
         </div>
 
         {/* Quick Platform Metrics Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 mt-3 pt-3 border-t border-slate-200/60 text-xs">
-          <div className="bg-white/80 rounded-lg p-2.5 border border-slate-200/60">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mt-3 pt-3 border-t border-slate-200/60 text-xs">
+          <div className="bg-white/80 rounded-lg p-2 border border-slate-200/60 flex flex-col justify-between">
             <span className="text-[11px] text-slate-500 block">주문 건수</span>
             <span className="text-sm font-bold text-slate-900">{filteredOrders.length}건</span>
           </div>
-          <div className="bg-white/80 rounded-lg p-2.5 border border-slate-200/60">
+          <div className="bg-white/80 rounded-lg p-2 border border-slate-200/60 flex flex-col justify-between">
             <span className="text-[11px] text-slate-500 block">일 총 매출액</span>
             <span className="text-sm font-bold text-slate-900">{formatKRW(sumTotalSales, true)}</span>
           </div>
-          <div className="bg-white/80 rounded-lg p-2.5 border border-slate-200/60">
+          <div className="bg-white/80 rounded-lg p-2 border border-slate-200/60 flex flex-col justify-between">
             <span className="text-[11px] text-slate-500 block">정산예정액</span>
             <span className="text-sm font-bold text-emerald-700">{formatKRW(sumSettlement, true)}</span>
           </div>
-          <div className="bg-white/80 rounded-lg p-2.5 border border-slate-200/60">
+          <div className="bg-white/80 rounded-lg p-2 border border-slate-200/60 flex flex-col justify-between">
             <span className="text-[11px] text-slate-500 block">총 매입원가</span>
             <span className="text-sm font-bold text-amber-700">{formatKRW(sumTotalCost, true)}</span>
           </div>
-          <div className="bg-white/80 rounded-lg p-2.5 border border-slate-200/60">
+          <div className="bg-white/80 rounded-lg p-2 border border-slate-200/60 flex flex-col justify-between">
             <span className="text-[11px] text-slate-500 block">플랫폼 수수료</span>
             <span className="text-sm font-bold text-rose-600">-{formatKRW(sumFees, true)}</span>
           </div>
-          <div className="bg-indigo-900 text-white rounded-lg p-2.5 border border-indigo-800 flex flex-col justify-between">
+
+          {/* 6. 최종 순수익 (세후) */}
+          <div className="bg-indigo-900 text-white rounded-lg p-2 border border-indigo-800 flex flex-col justify-between">
             <div className="flex justify-between items-center">
-              <span className="text-[11px] text-indigo-200">최종 순수익</span>
-              <span className="text-[10px] font-bold px-1 bg-emerald-400 text-slate-950 rounded">
+              <span className="text-[11px] text-indigo-200 font-semibold">최종 순수익</span>
+              <span className="text-[10px] font-bold px-1 bg-indigo-700 text-indigo-100 rounded">
                 {avgMargin}%
               </span>
             </div>
-            <span className="text-sm font-extrabold text-emerald-400">{formatKRW(sumNetProfit, true)}</span>
+            <span className="text-sm font-extrabold text-white">{formatKRW(sumNetProfit, true)}</span>
+          </div>
+
+          {/* 7. 일별 광고비 (직접 입력) */}
+          <div className="bg-rose-50/90 rounded-lg p-2 border border-rose-300 flex flex-col justify-between shadow-2xs">
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] font-bold text-rose-900 flex items-center">
+                <Target className="w-3 h-3 mr-1 text-rose-600" />
+                일별 광고비
+              </span>
+              <span className="text-[10px] text-rose-600 font-semibold">입력</span>
+            </div>
+            <div className="flex items-center mt-1">
+              <input
+                id={`input-ad-spend-${platform}`}
+                type="text"
+                value={isEditingAdSpend ? adSpendInputText : (currentAdSpend ? currentAdSpend.toLocaleString() : '')}
+                placeholder="0"
+                onFocus={() => {
+                  setIsEditingAdSpend(true);
+                  setAdSpendInputText(currentAdSpend ? String(currentAdSpend) : '');
+                }}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setAdSpendInputText(val);
+                }}
+                onBlur={() => {
+                  setIsEditingAdSpend(false);
+                  const num = Number(adSpendInputText) || 0;
+                  onUpdateAdSpend(platform, selectedDate, num);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className="w-full text-xs font-bold text-rose-950 bg-white border border-rose-300 rounded px-1.5 py-0.5 text-right focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              />
+              <span className="text-[11px] font-bold text-rose-900 ml-1 shrink-0">원</span>
+            </div>
+          </div>
+
+          {/* 8. 광고 후 실순익 (최종 실순수익) */}
+          <div className="bg-gradient-to-br from-emerald-900 to-slate-900 text-white rounded-lg p-2 border border-emerald-600 flex flex-col justify-between shadow-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] text-emerald-200 font-bold">광고후 실순익</span>
+              <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-emerald-400 text-slate-950">
+                실마진 {realMarginAfterAd}%
+              </span>
+            </div>
+            <span className="text-sm font-black text-emerald-300 tracking-tight">
+              {formatKRW(netProfitAfterAd, true)}
+            </span>
           </div>
         </div>
       </div>
@@ -748,6 +841,34 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
               </tfoot>
             )}
           </table>
+        </div>
+      </div>
+
+      {/* Bottom Ad Spend Summary Banner */}
+      <div className="bg-slate-900 text-white rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-md">
+        <div className="flex items-center space-x-3">
+          <span className="px-2.5 py-1 rounded-md bg-indigo-800 text-indigo-100 font-bold flex items-center">
+            <Target className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+            최종 실순익 계산:
+          </span>
+          <span className="text-slate-300">
+            최종 순수익(세후) <strong className="text-white">{formatKRW(sumNetProfit, true)}</strong>
+          </span>
+          <span className="text-rose-400 font-bold">-</span>
+          <span className="text-slate-300">
+            일별 광고비 <strong className="text-rose-400">-{formatKRW(currentAdSpend, true)}</strong>
+          </span>
+          <span className="text-emerald-400 font-bold">=</span>
+          <span className="text-emerald-400 font-extrabold text-sm">
+            광고 후 최종 실순익 {formatKRW(netProfitAfterAd, true)}
+          </span>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <span className="text-slate-400">광고 차감 후 실마진율:</span>
+          <span className="px-2 py-0.5 rounded font-black text-xs bg-emerald-400 text-slate-950">
+            {realMarginAfterAd}%
+          </span>
         </div>
       </div>
     </div>

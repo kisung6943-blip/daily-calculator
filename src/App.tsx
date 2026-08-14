@@ -14,6 +14,7 @@ import { exportOrdersToExcel } from './utils/excelParser';
 const STORAGE_ORDERS_KEY = 'seller_settlement_orders_v1';
 const STORAGE_COSTS_KEY = 'seller_settlement_costs_v1';
 const STORAGE_SETTINGS_KEY = 'seller_settlement_settings_v1';
+const STORAGE_AD_SPENDS_KEY = 'seller_settlement_ad_spends_v1';
 
 export default function App() {
   // 1. Core State with LocalStorage Persistence
@@ -47,6 +48,16 @@ export default function App() {
     return DEFAULT_SETTINGS;
   });
 
+  const [adSpends, setAdSpends] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_AD_SPENDS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return {};
+  });
+
   // 2. Navigation & Filter State
   const [currentTab, setCurrentTab] = useState<'dashboard' | PlatformType | 'cost_master'>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string>('all');
@@ -74,6 +85,20 @@ export default function App() {
       localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(settings));
     } catch (e) {}
   }, [settings]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_AD_SPENDS_KEY, JSON.stringify(adSpends));
+    } catch (e) {}
+  }, [adSpends]);
+
+  const handleUpdateAdSpend = (platform: PlatformType, date: string, amount: number) => {
+    const key = `${platform}__${date}`;
+    setAdSpends((prev) => ({
+      ...prev,
+      [key]: Math.max(0, amount),
+    }));
+  };
 
   // Available unique dates
   const availableDates = useMemo(() => {
@@ -252,6 +277,7 @@ export default function App() {
             orders={orders}
             selectedDate={selectedDate}
             settings={settings}
+            adSpends={adSpends}
             onSelectPlatform={(p) => setCurrentTab(p)}
             onOpenQuickCostModal={(ord) => setQuickCostTargetOrder(ord)}
           />
@@ -275,11 +301,13 @@ export default function App() {
             costItems={costItems}
             settings={settings}
             selectedDate={selectedDate}
+            adSpends={adSpends}
             onUpdateOrder={handleUpdateOrder}
             onDeleteOrder={handleDeleteOrder}
             onAddOrder={handleAddOrder}
             onOpenQuickCostModal={(ord) => setQuickCostTargetOrder(ord)}
             onOpenUploadModal={() => setIsUploadOpen(true)}
+            onUpdateAdSpend={handleUpdateAdSpend}
           />
         )}
       </main>

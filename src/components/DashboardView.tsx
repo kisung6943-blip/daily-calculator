@@ -10,6 +10,7 @@ import {
   Percent, 
   Receipt, 
   ShoppingBag, 
+  Target,
   TrendingUp, 
   Truck 
 } from 'lucide-react';
@@ -21,6 +22,7 @@ interface DashboardViewProps {
   orders: OrderItem[];
   selectedDate: string;
   settings: SettlementSettings;
+  adSpends: Record<string, number>;
   onSelectPlatform: (platform: PlatformType) => void;
   onOpenQuickCostModal: (order: OrderItem) => void;
 }
@@ -29,6 +31,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   orders,
   selectedDate,
   settings,
+  adSpends,
   onSelectPlatform,
   onOpenQuickCostModal,
 }) => {
@@ -51,6 +54,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const totalNetProfit = filteredOrders.reduce((sum, o) => sum + o.netProfit, 0);
   const avgMargin = totalSales > 0 ? Math.round((totalNetProfit / totalSales) * 100) : 0;
 
+  // Total Ad Spend calculation across selected scope
+  const getTotalAdSpend = () => {
+    if (selectedDate === 'all') {
+      let sum = 0;
+      Object.keys(adSpends).forEach((k) => {
+        sum += adSpends[k] || 0;
+      });
+      return sum;
+    }
+    let sum = 0;
+    Object.keys(adSpends).forEach((k) => {
+      if (k.endsWith(`__${selectedDate}`)) {
+        sum += adSpends[k] || 0;
+      }
+    });
+    return sum;
+  };
+
+  const totalAdSpend = getTotalAdSpend();
+  const totalNetProfitAfterAd = totalNetProfit - totalAdSpend;
+  const totalRealMarginAfterAd = totalSales > 0 ? Math.round((totalNetProfitAfterAd / totalSales) * 100) : 0;
+
   // Unmatched cost items
   const unmatchedOrders = filteredOrders.filter((o) => !o.isCostMatched || o.unitCost === 0);
 
@@ -67,6 +92,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const pNetProfit = pOrders.reduce((sum, o) => sum + o.netProfit, 0);
     const pMargin = pSales > 0 ? Math.round((pNetProfit / pSales) * 100) : 0;
 
+    let pAdSpend = 0;
+    if (selectedDate === 'all') {
+      if (adSpends[`${p.id}__all`] !== undefined && adSpends[`${p.id}__all`] > 0) {
+        pAdSpend = adSpends[`${p.id}__all`];
+      } else {
+        Object.keys(adSpends).forEach((k) => {
+          if (k.startsWith(`${p.id}__`) && k !== `${p.id}__all`) {
+            pAdSpend += adSpends[k] || 0;
+          }
+        });
+      }
+    } else {
+      pAdSpend = adSpends[`${p.id}__${selectedDate}`] || 0;
+    }
+
+    const pRealNetProfit = pNetProfit - pAdSpend;
+    const pRealMargin = pSales > 0 ? Math.round((pRealNetProfit / pSales) * 100) : 0;
+
     return {
       config: p,
       orderCount: pOrders.length,
@@ -75,6 +118,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       cost: pCost,
       netProfit: pNetProfit,
       marginRate: pMargin,
+      adSpend: pAdSpend,
+      realNetProfit: pRealNetProfit,
+      realMarginRate: pRealMargin,
     };
   });
 
@@ -147,50 +193,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       )}
 
       {/* Main KPI Highlights Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 shadow-2xs">
         {/* 1. 총 매출액 */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+        <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 mb-1">
             <span className="text-xs font-semibold text-slate-600">일 총 매출액</span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Banknote className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Banknote className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-xl font-extrabold text-slate-900 tracking-tight">
+          <div className="text-lg font-extrabold text-slate-900 tracking-tight">
             {formatKRW(totalSales, true)}
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
             <span>상품 {formatKRW(totalProductSales)}</span>
-            <span>배송비 {formatKRW(totalBuyerShipping)}</span>
           </div>
         </div>
 
         {/* 2. 정산예정액 & 수수료 */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+        <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-semibold text-slate-600">정산예정액 (공급가)</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <Receipt className="w-4 h-4" />
+            <span className="text-xs font-semibold text-slate-600">정산예정액</span>
+            <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <Receipt className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-xl font-extrabold text-emerald-700 tracking-tight">
+          <div className="text-lg font-extrabold text-emerald-700 tracking-tight">
             {formatKRW(totalSettlement, true)}
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-            <span>수수료 합계</span>
+            <span>수수료</span>
             <span className="text-rose-600 font-medium">-{formatKRW(totalFees, true)}</span>
           </div>
         </div>
 
         {/* 3. 총 매입원가 */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+        <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 mb-1">
             <span className="text-xs font-semibold text-slate-600">총 매입원가</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Package className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+              <Package className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-xl font-extrabold text-amber-700 tracking-tight">
+          <div className="text-lg font-extrabold text-amber-700 tracking-tight">
             {formatKRW(totalCost, true)}
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
@@ -201,37 +246,51 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* 4. 포장비 & 실택배비 */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-semibold text-slate-600">포장 · 실택배비</span>
-            <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Truck className="w-4 h-4" />
+        {/* 4. 총 일별 광고비 (NEW) */}
+        <div className="bg-rose-50/90 rounded-xl border border-rose-200 p-3.5 shadow-xs">
+          <div className="flex items-center justify-between text-rose-800 mb-1">
+            <span className="text-xs font-bold text-rose-900">총 일별 광고비</span>
+            <div className="w-6 h-6 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center">
+              <Target className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-xl font-extrabold text-purple-700 tracking-tight">
-            {formatKRW(totalPackaging + totalActualShipping, true)}
+          <div className="text-lg font-extrabold text-rose-700 tracking-tight">
+            {formatKRW(totalAdSpend, true)}
           </div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-            <span>포장 {formatKRW(totalPackaging)}</span>
-            <span>택배 {formatKRW(totalActualShipping)}</span>
+          <div className="text-[11px] text-rose-600 mt-1">
+            <span>플랫폼별 광고비 합계</span>
           </div>
         </div>
 
-        {/* 5. 최종 순수익 & 마진율 (핵심) */}
-        <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-xl border border-slate-800 p-4 shadow-md col-span-2 md:col-span-4 lg:col-span-1">
+        {/* 5. 최종 순수익 (세후) */}
+        <div className="bg-slate-900 text-white rounded-xl border border-slate-800 p-3.5 shadow-xs">
           <div className="flex items-center justify-between text-indigo-200 mb-1">
-            <span className="text-xs font-bold text-indigo-300">최종 순수익 (세후)</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-400 text-slate-950">
+            <span className="text-xs font-bold text-indigo-300">최종 순수익(세후)</span>
+            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-700 text-indigo-100">
               마진 {avgMargin}%
             </span>
           </div>
-          <div className="text-2xl font-black text-emerald-400 tracking-tight">
+          <div className="text-lg font-extrabold text-white tracking-tight">
             {formatKRW(totalNetProfit, true)}
           </div>
-          <div className="text-[11px] text-indigo-200/80 mt-1 flex items-center justify-between">
-            <span>종소세 10% 차감후</span>
-            <span className="font-semibold text-white">총 {filteredOrders.length}건 정산</span>
+          <div className="text-[11px] text-slate-400 mt-1">
+            <span>종소세 차감후 순익</span>
+          </div>
+        </div>
+
+        {/* 6. 광고 후 최종 실순익 (핵심) */}
+        <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-emerald-950 text-white rounded-xl border border-emerald-600/80 p-3.5 shadow-md">
+          <div className="flex items-center justify-between text-emerald-200 mb-1">
+            <span className="text-xs font-bold text-emerald-300">광고 후 최종 실순익</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-emerald-400 text-slate-950">
+              실마진 {totalRealMarginAfterAd}%
+            </span>
+          </div>
+          <div className="text-xl font-black text-emerald-400 tracking-tight">
+            {formatKRW(totalNetProfitAfterAd, true)}
+          </div>
+          <div className="text-[11px] text-emerald-200/80 mt-1 flex items-center justify-between">
+            <span>광고비 차감완료</span>
           </div>
         </div>
       </div>
@@ -313,32 +372,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-xs text-slate-500">매입원가</span>
-                      <span className="text-xs text-slate-600">
-                        {formatKRW(item.cost, true)}
+                      <span className="text-xs text-slate-500">일별 광고비</span>
+                      <span className="text-xs font-bold text-rose-600">
+                        {item.adSpend > 0 ? `-${formatKRW(item.adSpend, true)}` : '0원'}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Net Profit & Margin Bar */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                {/* Real Net Profit & Real Margin Bar */}
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] text-slate-500 block">최종 순수익</span>
-                    <span className="text-sm font-extrabold text-indigo-700">
-                      {formatKRW(item.netProfit, true)}
+                    <span className="text-[11px] text-slate-500 block">광고후 실순익</span>
+                    <span className="text-sm font-black text-emerald-700">
+                      {formatKRW(item.realNetProfit, true)}
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[11px] text-slate-500 block">마진율</span>
-                    <span className={`text-xs font-black px-1.5 py-0.5 rounded-sm ${
-                      item.marginRate >= 30 
+                    <span className="text-[11px] text-slate-500 block">실마진율</span>
+                    <span className={`text-xs font-black px-1.5 py-0.5 rounded ${
+                      item.realMarginRate >= 30 
                         ? 'bg-emerald-100 text-emerald-800' 
-                        : item.marginRate >= 15 
+                        : item.realMarginRate >= 15 
                         ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-slate-100 text-slate-700'
+                        : 'bg-amber-100 text-amber-800'
                     }`}>
-                      {item.marginRate}%
+                      {item.realMarginRate}%
                     </span>
                   </div>
                 </div>
