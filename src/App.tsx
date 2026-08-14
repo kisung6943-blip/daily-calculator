@@ -122,8 +122,37 @@ export default function App() {
 
   // Order CRUD Handlers
   const handleUpdateOrder = (updated: OrderItem) => {
+    let currentCosts = [...costItems];
+    if (updated.unitCost && updated.unitCost > 0 && updated.productName) {
+      const pNorm = updated.productName.trim().toLowerCase();
+      const oNorm = (updated.optionName || '').trim().toLowerCase();
+      const existingIdx = currentCosts.findIndex(
+        (c) => c.productName.trim().toLowerCase() === pNorm && (c.optionName || '').trim().toLowerCase() === oNorm
+      );
+      if (existingIdx >= 0) {
+        currentCosts[existingIdx] = {
+          ...currentCosts[existingIdx],
+          cost: updated.unitCost,
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+      } else {
+        currentCosts = [
+          {
+            id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            productName: updated.productName,
+            optionName: updated.optionName || '기본',
+            cost: updated.unitCost,
+            category: '주방용품/부품',
+            updatedAt: new Date().toISOString().split('T')[0],
+          },
+          ...currentCosts,
+        ];
+      }
+      setCostItems(currentCosts);
+    }
+
     const updatedList = orders.map((o) => (o.id === updated.id ? updated : o));
-    setOrders(processAllOrders(updatedList, costItems, settings));
+    setOrders(processAllOrders(updatedList, currentCosts, settings));
   };
 
   const handleDeleteOrder = (id: string) => {
@@ -179,20 +208,39 @@ export default function App() {
   const handleQuickCostSave = (
     orderId: string,
     cost: number,
-    saveToMaster: boolean,
+    _saveToMaster: boolean,
     costItemData?: Partial<CostItem>
   ) => {
     let currentCosts = [...costItems];
-    if (saveToMaster && costItemData) {
-      const newItem: CostItem = {
-        id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-        productName: costItemData.productName || '',
-        optionName: costItemData.optionName || '기본',
-        cost,
-        category: costItemData.category || '주방용품/부품',
-        updatedAt: new Date().toISOString().split('T')[0],
-      };
-      currentCosts = [newItem, ...costItems];
+    const targetOrder = orders.find((o) => o.id === orderId);
+    const pName = costItemData?.productName || targetOrder?.productName || '';
+    const oName = costItemData?.optionName || targetOrder?.optionName || '기본';
+
+    if (pName && cost > 0) {
+      const pNorm = pName.trim().toLowerCase();
+      const oNorm = oName.trim().toLowerCase();
+      const existingIdx = currentCosts.findIndex(
+        (c) => c.productName.trim().toLowerCase() === pNorm && (c.optionName || '').trim().toLowerCase() === oNorm
+      );
+      if (existingIdx >= 0) {
+        currentCosts[existingIdx] = {
+          ...currentCosts[existingIdx],
+          cost,
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+      } else {
+        currentCosts = [
+          {
+            id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            productName: pName,
+            optionName: oName,
+            cost,
+            category: costItemData?.category || '주방용품/부품',
+            updatedAt: new Date().toISOString().split('T')[0],
+          },
+          ...currentCosts,
+        ];
+      }
       setCostItems(currentCosts);
     }
 
@@ -216,13 +264,38 @@ export default function App() {
 
   // Excel Batch Import Handler
   const handleImportOrders = (newOrders: OrderItem[], appendMode: boolean) => {
+    // 1. Auto-preserve all previously entered order costs into costItems DB
+    let currentCosts = [...costItems];
+    const existingCostKeys = new Set(
+      currentCosts.map((c) => `${c.productName.trim().toLowerCase()}__${(c.optionName || '').trim().toLowerCase()}`)
+    );
+
+    orders.forEach((ord) => {
+      if (ord.unitCost > 0 && ord.productName) {
+        const key = `${ord.productName.trim().toLowerCase()}__${(ord.optionName || '').trim().toLowerCase()}`;
+        if (!existingCostKeys.has(key)) {
+          existingCostKeys.add(key);
+          currentCosts.push({
+            id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            productName: ord.productName,
+            optionName: ord.optionName || '기본',
+            cost: ord.unitCost,
+            category: '주방용품/부품',
+            updatedAt: new Date().toISOString().split('T')[0],
+          });
+        }
+      }
+    });
+
+    setCostItems(currentCosts);
+
     let mergedOrders: OrderItem[];
     if (appendMode) {
       mergedOrders = [...newOrders, ...orders];
     } else {
       mergedOrders = newOrders;
     }
-    const processed = processAllOrders(mergedOrders, costItems, settings);
+    const processed = processAllOrders(mergedOrders, currentCosts, settings);
     setOrders(processed);
     setCurrentTab('dashboard');
   };
