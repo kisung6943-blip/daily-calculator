@@ -1,0 +1,6 @@
+{
+  "name": "쇼핑몰 멀티채널 일일 매출 및 순이익 정산 관리기",
+  "description": "스마트스토어, 쿠팡, 오늘의집, 옥션, G마켓, 11번가, 자사몰 엑셀 양식 자동 파싱, 품목/옵션별 원가 매칭, 합배송 배송비 정산, 부가세 및 종합소득세 반영 순익 자동 정산 시스템",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
