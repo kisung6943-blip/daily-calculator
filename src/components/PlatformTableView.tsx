@@ -198,48 +198,45 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Platform Header Card with Overview */}
-      <div className={`rounded-xl border p-4 shadow-xs ${platformConfig.bgColor} ${platformConfig.borderColor}`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center space-x-3">
-            <span className={`px-3 py-1 text-sm font-extrabold rounded-lg border bg-white shadow-xs ${platformConfig.textColor} ${platformConfig.borderColor}`}>
+      <div className={`rounded-xl border p-2.5 shadow-2xs ${platformConfig.bgColor} ${platformConfig.borderColor}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center space-x-2">
+            <span className={`px-2.5 py-0.5 text-xs font-extrabold rounded-md border bg-white shadow-2xs ${platformConfig.textColor} ${platformConfig.borderColor}`}>
               {platformConfig.name}
             </span>
             <div>
-              <p className="text-xs text-slate-700 font-medium">
-                {platformConfig.description}
-              </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                포장비 {settings.defaultPackagingCost}원 · 실택배비 {settings.defaultActualShippingCost}원 · 종합소득세 {settings.defaultIncomeTaxRate}%
+              <p className="text-[11px] text-slate-700 font-medium">
+                {platformConfig.description} (포장 {settings.defaultPackagingCost}원 · 택배 {settings.defaultActualShippingCost}원 · 종소세 {settings.defaultIncomeTaxRate}%)
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5">
             <button
               id={`btn-add-row-${platform}`}
               onClick={handleAddNewRow}
-              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5 mr-1 text-indigo-600" />
-              새 주문행 추가
+              새 주문 추가
             </button>
             <button
               id={`btn-upload-${platform}`}
               onClick={onOpenUploadModal}
-              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs transition-colors cursor-pointer"
             >
               <UploadCloud className="w-3.5 h-3.5 mr-1" />
-              {platformConfig.shortName} 엑셀 업로드
+              {platformConfig.shortName} 업로드
             </button>
             <button
               id={`btn-export-${platform}`}
               onClick={() => exportOrdersToExcel(filteredOrders, platform, `${platformConfig.shortName}_정산표_${selectedDate}.xlsx`)}
-              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs transition-colors cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 mr-1" />
-              엑셀 다운로드
+              다운로드
             </button>
           </div>
         </div>
@@ -352,7 +349,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
 
       {/* Main Formatted Settlement Table (Exact Layout matching User's Screenshots) */}
       <div className="bg-white rounded-xl border border-slate-300 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto max-h-[620px] scrollbar-thin">
+        <div className="overflow-x-auto max-h-[calc(100vh-270px)] min-h-[280px] scrollbar-thin">
           <table className="min-w-full text-xs text-left border-collapse">
             <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10 border-b border-slate-300 shadow-xs">
               <tr className="divide-x divide-slate-300">

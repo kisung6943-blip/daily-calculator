@@ -162,7 +162,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Unmatched Cost Alert Banner if any */}
       {unmatchedOrders.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start justify-between shadow-xs">
