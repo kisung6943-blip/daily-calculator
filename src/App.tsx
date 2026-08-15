@@ -322,11 +322,16 @@ export default function App() {
 
   // JSON Data Backup Export
   const handleExportBackup = () => {
+    const mappedOrders = orders.map((o: any) => ({
+      ...o,
+      salesAmount: Number(o.salesAmount ?? o.totalPrice ?? (o.unitPrice ? o.unitPrice * (o.quantity || 1) : 0)) || 0,
+    }));
     const backupData = {
       version: '1.0',
       exportedAt: new Date().toISOString(),
-      orders,
+      orders: mappedOrders,
       costItems,
+      costMaster: costItems,
       settings,
       adSpends,
     };
@@ -351,12 +356,17 @@ export default function App() {
         const parsed = JSON.parse(content);
         let restoredCount = 0;
 
-        if (parsed.orders && Array.isArray(parsed.orders)) {
-          setOrders(parsed.orders);
+        const importedCosts = parsed.costItems || parsed.costMaster;
+        if (importedCosts && Array.isArray(importedCosts)) {
+          setCostItems(importedCosts);
           restoredCount++;
         }
-        if (parsed.costItems && Array.isArray(parsed.costItems)) {
-          setCostItems(parsed.costItems);
+        if (parsed.orders && Array.isArray(parsed.orders)) {
+          const normOrders = parsed.orders.map((o: any) => ({
+            ...o,
+            salesAmount: Number(o.salesAmount ?? o.totalPrice ?? (o.unitPrice ? o.unitPrice * (o.quantity || 1) : 0)) || 0,
+          }));
+          setOrders(processAllOrders(normOrders, importedCosts || costItems, settings));
           restoredCount++;
         }
         if (parsed.settings) {
