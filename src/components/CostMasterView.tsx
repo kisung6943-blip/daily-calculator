@@ -42,6 +42,7 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCostValue, setEditCostValue] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Bulk Unmatched Modal State
   const [showUnmatchedModal, setShowUnmatchedModal] = useState(false);

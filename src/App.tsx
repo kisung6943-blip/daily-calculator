@@ -320,6 +320,67 @@ export default function App() {
     );
   };
 
+  // JSON Data Backup Export
+  const handleExportBackup = () => {
+    const backupData = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      orders,
+      costItems,
+      settings,
+      adSpends,
+    };
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(backupData, null, 2))}`;
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', jsonString);
+    downloadAnchor.setAttribute('download', `daily_calculator_backup_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // JSON Data Backup Import / Restore
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        let restoredCount = 0;
+
+        if (parsed.orders && Array.isArray(parsed.orders)) {
+          setOrders(parsed.orders);
+          restoredCount++;
+        }
+        if (parsed.costItems && Array.isArray(parsed.costItems)) {
+          setCostItems(parsed.costItems);
+          restoredCount++;
+        }
+        if (parsed.settings) {
+          setSettings(parsed.settings);
+          restoredCount++;
+        }
+        if (parsed.adSpends) {
+          setAdSpends(parsed.adSpends);
+          restoredCount++;
+        }
+
+        if (restoredCount > 0) {
+          alert('백업 데이터(주문내역, 원가표, 설정값, 광고비)를 성공적으로 복원했습니다!');
+        } else {
+          alert('백업 파일에서 올바른 데이터를 찾을 수 없습니다.');
+        }
+      } catch (err) {
+        alert('백업 파일을 읽는 중 오류가 발생했습니다. 올바른 .json 파일인지 확인해 주세요.');
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  };
+
   // Handle Setting Save
   const handleSaveSettings = (newSettings: SettlementSettings) => {
     setSettings(newSettings);
@@ -339,6 +400,8 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onExportExcel={handleGlobalExport}
         onResetSampleData={handleResetSampleData}
+        onExportBackup={handleExportBackup}
+        onImportBackup={handleImportBackup}
         unmatchedCostCount={unmatchedCostCount}
         totalOrdersCount={orders.length}
       />

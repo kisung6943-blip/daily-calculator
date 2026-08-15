@@ -3,6 +3,7 @@ import {
   BarChart3, 
   Database, 
   Download, 
+  FileJson,
   FileSpreadsheet, 
   Plus, 
   RotateCcw, 
@@ -23,6 +24,8 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onExportExcel: () => void;
   onResetSampleData: () => void;
+  onExportBackup?: () => void;
+  onImportBackup?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   unmatchedCostCount: number;
   totalOrdersCount: number;
 }
@@ -37,6 +40,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onExportExcel,
   onResetSampleData,
+  onExportBackup,
+  onImportBackup,
   unmatchedCostCount,
   totalOrdersCount,
 }) => {
@@ -82,6 +87,35 @@ export const Header: React.FC<HeaderProps> = ({
               <Download className="w-3.5 h-3.5 mr-1" />
               엑셀 다운로드
             </button>
+
+            {onExportBackup && (
+              <button
+                id="btn-export-backup"
+                onClick={onExportBackup}
+                title="데이터 백업 파일 저장 (.json)"
+                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-2xs transition-colors cursor-pointer"
+              >
+                <FileJson className="w-3.5 h-3.5 mr-1 text-sky-300" />
+                백업 저장
+              </button>
+            )}
+
+            {onImportBackup && (
+              <label
+                id="lbl-import-backup"
+                title="다른 PC 백업 파일 불러오기 (.json)"
+                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 shadow-2xs transition-colors cursor-pointer"
+              >
+                <FileJson className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                백업 복원
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={onImportBackup}
+                  className="hidden"
+                />
+              </label>
+            )}
 
             <button
               id="btn-cost-master-top"
