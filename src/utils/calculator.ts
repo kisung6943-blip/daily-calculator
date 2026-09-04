@@ -162,7 +162,9 @@ export function recalculateOrder(
   const totalCost = unitCost * quantity;
 
   // Packaging & Actual Shipping
-  let packagingCost = order.packagingCost !== undefined ? Number(order.packagingCost) : settings.defaultPackagingCost;
+  const isRiceProduct = /쌀|햅쌀|고시히카리|경기미|추청|현미|백미|찹쌀|오대쌀|일품쌀|잡곡/.test(order.productName || '');
+  const defaultPkgCost = isRiceProduct ? (settings.ricePackagingCost || 1000) : settings.defaultPackagingCost;
+  let packagingCost = order.packagingCost !== undefined ? Number(order.packagingCost) : defaultPkgCost;
   if (isBundleSubItem && settings.bundleOnlyFirstPackageCost) {
     packagingCost = 0;
   }

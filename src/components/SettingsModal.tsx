@@ -67,7 +67,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               기본 배송 및 포장 비용 설정
             </h4>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
                   기본 포장비 (원/건)
@@ -83,7 +83,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }
                   className="w-full p-2 border border-slate-300 rounded-lg bg-white font-bold text-slate-900"
                 />
-                <span className="text-[11px] text-slate-500 mt-0.5 block">기본 500원</span>
+                <span className="text-[11px] text-slate-500 mt-0.5 block">일반 500원</span>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  🌾 쌀/양곡 포장비 (원/건)
+                </label>
+                <input
+                  type="number"
+                  value={formState.ricePackagingCost || 1000}
+                  onChange={(e) =>
+                    setFormState({
+                      ...formState,
+                      ricePackagingCost: Number(e.target.value) || 0,
+                    })
+                  }
+                  className="w-full p-2 border border-slate-300 rounded-lg bg-white font-bold text-emerald-800"
+                />
+                <span className="text-[11px] text-emerald-600 mt-0.5 block font-semibold">쌀 전용 1,000원</span>
               </div>
 
               <div>

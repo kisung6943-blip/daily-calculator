@@ -78,6 +78,7 @@ export interface OrderItem {
 
 export interface SettlementSettings {
   defaultPackagingCost: number; // 기본 포장비 (500원)
+  ricePackagingCost: number; // 쌀/양곡류 전용 포장비 (1,000원)
   defaultActualShippingCost: number; // 기본 실택배비 (1,900원)
   defaultIncomeTaxRate: number; // 종합소득세율 (10%)
   vatCalculationMethod: 'standard' | 'simple10'; // 부가세 산출 방식: 표준(매출-매입부가세) vs 10% 일괄

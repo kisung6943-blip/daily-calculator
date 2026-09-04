@@ -82,6 +82,7 @@ export const PLATFORMS: Record<string, PlatformConfig> = {
 
 export const DEFAULT_SETTINGS: SettlementSettings = {
   defaultPackagingCost: 500,
+  ricePackagingCost: 1000,
   defaultActualShippingCost: 1900,
   defaultIncomeTaxRate: 10, // 10%
   vatCalculationMethod: 'simple10', // 10% 일괄 (또는 standard)

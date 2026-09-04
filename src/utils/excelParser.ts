@@ -154,6 +154,7 @@ export async function parseExcelOrders(
   const parsedOrders: OrderItem[] = [];
   const activeSettings = settings || {
     defaultPackagingCost: 500,
+    ricePackagingCost: 1000,
     defaultActualShippingCost: 1900,
     defaultIncomeTaxRate: 10,
     vatCalculationMethod: 'simple10',
