@@ -156,7 +156,7 @@ export async function parseExcelOrders(
     defaultPackagingCost: 500,
     ricePackagingCost: 1000,
     defaultActualShippingCost: 1900,
-    defaultIncomeTaxRate: 10,
+    defaultIncomeTaxRate: 25,
     vatCalculationMethod: 'simple10',
     autoBundleShipping: true,
     bundleOnlyFirstPackageCost: false,

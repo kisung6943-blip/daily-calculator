@@ -152,14 +152,7 @@ export function recalculateOrder(
       feeAmount = Math.abs(Number(order.feeAmount));
       settlementAmount = Number(order.settlementAmount);
     } else {
-      // 쿠팡 정산 특성: 카테고리 수수료에 부가세 10% 추가 부과 (13% -> 14.3%, 6% -> 6.6%) 및 배송비 수수료 3.3%
-      if (platform === 'coupang') {
-        const effectiveFeeRate = feeRate * 1.1; // 수수료 부가세 10% 별도
-        const shippingFeeCommission = buyerShippingFee > 0 ? buyerShippingFee * 0.033 : 0; // 배송비 수수료 3.3%
-        feeAmount = Math.round(totalPrice * (effectiveFeeRate / 100) + shippingFeeCommission);
-      } else {
-        feeAmount = Math.round(totalPrice * (feeRate / 100));
-      }
+      feeAmount = Math.round(totalPrice * (feeRate / 100));
       settlementAmount = Math.round(totalPrice - feeAmount);
     }
   }

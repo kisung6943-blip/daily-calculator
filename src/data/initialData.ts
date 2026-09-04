@@ -84,7 +84,7 @@ export const DEFAULT_SETTINGS: SettlementSettings = {
   defaultPackagingCost: 500,
   ricePackagingCost: 1000,
   defaultActualShippingCost: 1900,
-  defaultIncomeTaxRate: 10, // 10%
+  defaultIncomeTaxRate: 25, // 25% (사용자 엑셀 종합소득세 수식 기준)
   vatCalculationMethod: 'simple10', // 10% 일괄 (또는 standard)
   autoBundleShipping: true,
   bundleOnlyFirstPackageCost: false, // 포장비는 품목별 혹은 1회
