@@ -190,11 +190,21 @@ export default function App() {
   };
 
   // Excel Batch Import Handler
-  const handleImportOrders = (newOrders: OrderItem[], appendMode: boolean) => {
+  const handleImportOrders = (
+    newOrders: OrderItem[], 
+    importMode: 'append' | 'replace_platform' | 'replace_all'
+  ) => {
     let mergedOrders: OrderItem[];
-    if (appendMode) {
+    if (importMode === 'append') {
       mergedOrders = [...newOrders, ...orders];
+    } else if (importMode === 'replace_platform') {
+      // Extract platforms present in newOrders
+      const newPlatforms = new Set(newOrders.map((o) => o.platform));
+      // Keep existing orders from other platforms
+      const remaining = orders.filter((o) => !newPlatforms.has(o.platform));
+      mergedOrders = [...newOrders, ...remaining];
     } else {
+      // replace_all: wipe all previous orders
       mergedOrders = newOrders;
     }
     const processed = processAllOrders(mergedOrders, costItems, settings);

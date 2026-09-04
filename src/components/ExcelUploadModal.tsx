@@ -19,7 +19,7 @@ interface ExcelUploadModalProps {
   onClose: () => void;
   costItems: CostItem[];
   settings: SettlementSettings;
-  onImportOrders: (newOrders: OrderItem[], appendMode: boolean) => void;
+  onImportOrders: (newOrders: OrderItem[], importMode: 'append' | 'replace_platform' | 'replace_all') => void;
 }
 
 export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
@@ -39,7 +39,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
     detectedPlatform: PlatformType;
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [appendMode, setAppendMode] = useState(true);
+  const [importMode, setImportMode] = useState<'append' | 'replace_platform' | 'replace_all'>('replace_platform');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,7 +81,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
 
   const handleConfirmImport = () => {
     if (!parsedPreview || parsedPreview.orders.length === 0) return;
-    onImportOrders(parsedPreview.orders, appendMode);
+    onImportOrders(parsedPreview.orders, importMode);
     onClose();
   };
 
@@ -286,29 +286,68 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                 </p>
               )}
 
-              {/* Append vs Replace Option */}
-              <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                <span className="font-semibold text-slate-700">가져오기 방식:</span>
-                <div className="flex space-x-3">
-                  <label className="flex items-center space-x-1 cursor-pointer">
+              {/* Import Mode Options */}
+              <div className="pt-2.5 border-t border-slate-200 space-y-1.5">
+                <span className="font-bold text-slate-800 text-xs block">가져오기 방식 선택:</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <label className={`flex items-start space-x-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                    importMode === 'replace_platform'
+                      ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}>
                     <input
                       type="radio"
                       name="importMode"
-                      checked={appendMode}
-                      onChange={() => setAppendMode(true)}
-                      className="text-indigo-600"
+                      checked={importMode === 'replace_platform'}
+                      onChange={() => setImportMode('replace_platform')}
+                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
                     />
-                    <span className="text-slate-800 font-medium">기존 데이터에 추가</span>
+                    <div>
+                      <span className="block text-xs font-bold">해당 쇼핑몰만 교체 (추천)</span>
+                      <span className="text-[10px] text-slate-500 font-normal block leading-tight mt-0.5">
+                        업로드한 쇼핑몰({PLATFORMS[parsedPreview.detectedPlatform]?.shortName || parsedPreview.detectedPlatform})의 기존 데이터만 덮어쓰고 타 쇼핑몰 내역은 유지
+                      </span>
+                    </div>
                   </label>
-                  <label className="flex items-center space-x-1 cursor-pointer">
+
+                  <label className={`flex items-start space-x-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                    importMode === 'append'
+                      ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}>
                     <input
                       type="radio"
                       name="importMode"
-                      checked={!appendMode}
-                      onChange={() => setAppendMode(false)}
-                      className="text-indigo-600"
+                      checked={importMode === 'append'}
+                      onChange={() => setImportMode('append')}
+                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
                     />
-                    <span className="text-slate-800 font-medium">기존 데이터 교체</span>
+                    <div>
+                      <span className="block text-xs font-bold">기존 데이터에 추가</span>
+                      <span className="text-[10px] text-slate-500 font-normal block leading-tight mt-0.5">
+                        기존에 등록된 모든 내역을 유지하면서 새 주문건을 추가
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start space-x-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                    importMode === 'replace_all'
+                      ? 'bg-rose-50 border-rose-300 text-rose-900 font-bold'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="importMode"
+                      checked={importMode === 'replace_all'}
+                      onChange={() => setImportMode('replace_all')}
+                      className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                    />
+                    <div>
+                      <span className="block text-xs font-bold text-rose-800">전체 데이터 초기화</span>
+                      <span className="text-[10px] text-slate-500 font-normal block leading-tight mt-0.5">
+                        모든 쇼핑몰의 기존 내역을 싹 비우고 전체 교체
+                      </span>
+                    </div>
                   </label>
                 </div>
               </div>
