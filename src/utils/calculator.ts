@@ -7,6 +7,7 @@ export function normalizeText(str: string): string {
   if (!str) return '';
   return str
     .toLowerCase()
+    .replace(/^[0-9]+[.\s]*/, '') // Remove leading digits like "3.", "64." from Ohouse product names
     .replace(/\s+/g, ' ')
     .replace(/[\[\]\(\)\{\}\-_,]/g, '')
     .trim();
@@ -20,39 +21,38 @@ export function findMatchingCost(
   optionName: string,
   costItems: CostItem[]
 ): { cost: number; isMatched: boolean; matchedItem?: CostItem } {
-  if (!productName) return { cost: 0, isMatched: false };
+  if (!productName || !costItems || costItems.length === 0) return { cost: 0, isMatched: false };
 
   const normProduct = normalizeText(productName);
+  const rawNormProduct = productName.toLowerCase().replace(/[^a-zA-Z0-9가-힣]/g, '');
   const normOption = normalizeText(optionName);
 
   // 1. Exact match (Product + Option)
   let found = costItems.find((item) => {
     const itemP = normalizeText(item.productName);
     const itemO = normalizeText(item.optionName);
-    return itemP === normProduct && (itemO === normOption || (!normOption && !itemO));
+    return (itemP === normProduct || itemP === rawNormProduct) && (itemO === normOption || (!normOption && !itemO));
   });
 
   if (found) {
     return { cost: found.cost, isMatched: true, matchedItem: found };
   }
 
-  // 2. Exact product name match (if option is empty or "기본")
+  // 2. Exact product name match (ignoring option if option is default/empty)
   found = costItems.find((item) => {
     const itemP = normalizeText(item.productName);
-    return itemP === normProduct;
+    return itemP === normProduct || itemP === rawNormProduct;
   });
 
   if (found) {
     return { cost: found.cost, isMatched: true, matchedItem: found };
   }
 
-  // 3. Substring matching: product name contains cost product name and option matches
+  // 3. Substring matching: product name contains cost product name or vice versa
   found = costItems.find((item) => {
     const itemP = normalizeText(item.productName);
-    const itemO = normalizeText(item.optionName);
-    const pMatch = normProduct.includes(itemP) || itemP.includes(normProduct);
-    const oMatch = !itemO || !normOption || normOption.includes(itemO) || itemO.includes(normOption);
-    return pMatch && oMatch;
+    if (!itemP || itemP.length < 2) return false;
+    return normProduct.includes(itemP) || itemP.includes(normProduct);
   });
 
   if (found) {
