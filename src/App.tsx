@@ -8,7 +8,7 @@ import { QuickCostModal } from './components/QuickCostModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DEFAULT_SETTINGS, INITIAL_COST_ITEMS, INITIAL_ORDERS, PLATFORMS } from './data/initialData';
 import { CostItem, OrderItem, PlatformType, SettlementSettings } from './types';
-import { processAllOrders, recalculateOrder } from './utils/calculator';
+import { normalizeText, processAllOrders, recalculateOrder } from './utils/calculator';
 import { exportOrdersToExcel } from './utils/excelParser';
 
 const STORAGE_ORDERS_KEY = 'seller_settlement_orders_v1';
@@ -97,8 +97,40 @@ export default function App() {
 
   // Order CRUD Handlers
   const handleUpdateOrder = (updated: OrderItem) => {
+    // 1. If unitCost was updated/entered, automatically save to Master Cost DB so it's NEVER lost
+    let currentCosts = costItems;
+    if (updated.unitCost && updated.unitCost > 0 && updated.productName) {
+      const normP = normalizeText(updated.productName);
+      const normO = normalizeText(updated.optionName);
+      const existingIdx = costItems.findIndex((c) => {
+        const itemP = normalizeText(c.productName);
+        const itemO = normalizeText(c.optionName);
+        return (itemP === normP || itemP === updated.productName.toLowerCase()) && (itemO === normO || (!normO && !itemO));
+      });
+
+      if (existingIdx >= 0) {
+        currentCosts = [...costItems];
+        currentCosts[existingIdx] = {
+          ...currentCosts[existingIdx],
+          cost: updated.unitCost,
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+      } else {
+        const newCostItem: CostItem = {
+          id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          productName: updated.productName,
+          optionName: updated.optionName || '기본',
+          cost: updated.unitCost,
+          category: '수동입력',
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+        currentCosts = [newCostItem, ...costItems];
+      }
+      setCostItems(currentCosts);
+    }
+
     const updatedList = orders.map((o) => (o.id === updated.id ? updated : o));
-    setOrders(processAllOrders(updatedList, costItems, settings));
+    setOrders(processAllOrders(updatedList, currentCosts, settings));
   };
 
   const handleDeleteOrder = (id: string) => {
