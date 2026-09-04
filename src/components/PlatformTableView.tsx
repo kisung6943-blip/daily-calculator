@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   AlertTriangle, 
+  ArrowUpDown,
   Check, 
   ChevronDown, 
   Download, 
@@ -12,6 +13,7 @@ import {
   Search, 
   Sparkles, 
   Trash2, 
+  Trophy,
   Truck, 
   UploadCloud 
 } from 'lucide-react';
@@ -48,6 +50,8 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+  const [sortField, setSortField] = useState<'default' | 'netProfit' | 'productName' | 'marginRate' | 'totalPrice'>('default');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const platformConfig = PLATFORMS[platform] || PLATFORMS.smartstore;
 
@@ -64,6 +68,45 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
       o.orderNumber.toLowerCase().includes(term)
     );
   });
+
+  // Sort orders according to sortField
+  const sortedOrders = useMemo(() => {
+    if (sortField === 'default') return filteredOrders;
+    return [...filteredOrders].sort((a, b) => {
+      let result = 0;
+      if (sortField === 'netProfit') result = b.netProfit - a.netProfit;
+      else if (sortField === 'marginRate') result = b.marginRate - a.marginRate;
+      else if (sortField === 'productName') result = a.productName.localeCompare(b.productName);
+      else if (sortField === 'totalPrice') result = b.totalPrice - a.totalPrice;
+      return sortOrder === 'desc' ? result : -result;
+    });
+  }, [filteredOrders, sortField, sortOrder]);
+
+  // Group by product name to get Top Net Profit Ranking
+  const productProfitSummary = useMemo(() => {
+    const map = new Map<string, { productName: string; totalQty: number; totalRevenue: number; totalNetProfit: number; avgMargin: number }>();
+    dateFiltered.forEach((o) => {
+      const key = o.productName || '미지정 상품';
+      const existing = map.get(key) || { productName: key, totalQty: 0, totalRevenue: 0, totalNetProfit: 0, avgMargin: 0 };
+      existing.totalQty += o.quantity;
+      existing.totalRevenue += o.totalPrice + o.buyerShippingFee;
+      existing.totalNetProfit += o.netProfit;
+      map.set(key, existing);
+    });
+    return Array.from(map.values()).map((p) => ({
+      ...p,
+      avgMargin: p.totalRevenue > 0 ? Math.round((p.totalNetProfit / p.totalRevenue) * 100) : 0,
+    })).sort((a, b) => b.totalNetProfit - a.totalNetProfit);
+  }, [dateFiltered]);
+
+  const handleSortToggle = (field: 'netProfit' | 'productName' | 'marginRate' | 'totalPrice') => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
+  };
 
   // Calculate Column Totals
   const sumTotalSales = filteredOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
@@ -241,6 +284,73 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
         </div>
       </div>
 
+      {/* Product Net Profit Top Ranking Summary Widget */}
+      {productProfitSummary.length > 0 && (
+        <div className="bg-gradient-to-r from-emerald-50/80 via-teal-50/50 to-indigo-50/80 border border-emerald-200 rounded-xl p-3 shadow-xs space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                🏆
+              </div>
+              <div>
+                <span className="font-extrabold text-xs text-slate-900">
+                  상품별 최종 순수익 Top 랭킹 (어떤 상품이 순수익이 가장 많이 남는지)
+                </span>
+                <span className="text-[11px] text-slate-500 font-normal ml-2">
+                  (총 {productProfitSummary.length}개 품목)
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center space-x-1">
+              <button
+                type="button"
+                onClick={() => handleSortToggle('netProfit')}
+                className={`text-[11px] font-extrabold px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
+                  sortField === 'netProfit'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                    : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
+                }`}
+              >
+                💰 순수익 높은순 {sortField === 'netProfit' ? (sortOrder === 'desc' ? '▼' : '▲') : ''}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSortToggle('marginRate')}
+                className={`text-[11px] font-extrabold px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
+                  sortField === 'marginRate'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                    : 'bg-white text-blue-800 border-blue-300 hover:bg-blue-50'
+                }`}
+              >
+                📈 마진율 높은순 {sortField === 'marginRate' ? (sortOrder === 'desc' ? '▼' : '▲') : ''}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-xs pt-1">
+            {productProfitSummary.slice(0, 4).map((p, rankIdx) => (
+              <div key={rankIdx} className="bg-white/90 rounded-lg p-2.5 border border-slate-200 shadow-2xs flex flex-col justify-between hover:border-emerald-300 transition-all">
+                <div className="flex items-start justify-between gap-1">
+                  <span className="font-bold text-slate-900 truncate text-xs flex-1" title={p.productName}>
+                    {rankIdx === 0 ? '🥇 ' : rankIdx === 1 ? '🥈 ' : rankIdx === 2 ? '🥉 ' : `${rankIdx + 1}. `}
+                    {p.productName}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-slate-100 text-slate-600 shrink-0">
+                    {p.totalQty}개 판매
+                  </span>
+                </div>
+                <div className="mt-1.5 flex items-center justify-between pt-1.5 border-t border-slate-100">
+                  <span className="text-[10px] text-slate-500">매출 {formatKRW(p.totalRevenue)}</span>
+                  <span className={`font-black text-xs ${p.totalNetProfit > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    순수익 {formatKRW(p.totalNetProfit, true)} ({p.avgMargin}%)
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Search & Filter Bar */}
       <div className="flex items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
@@ -272,8 +382,19 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                 {platform === 'smartstore' && (
                   <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100/70 text-amber-900">상품번호</th>
                 )}
-                <th className="py-2.5 px-4 whitespace-nowrap min-w-[220px] bg-amber-200/80 text-amber-950">
-                  상품명
+                <th 
+                  onClick={() => handleSortToggle('productName')}
+                  className="py-2.5 px-4 whitespace-nowrap min-w-[240px] bg-amber-200/80 text-amber-950 cursor-pointer hover:bg-amber-300 transition-colors"
+                  title="클릭하여 상품명 정렬"
+                >
+                  <div className="flex items-center justify-between">
+                    <span>상품명</span>
+                    {sortField === 'productName' ? (
+                      <span className="text-xs font-bold">{sortOrder === 'desc' ? '▼' : '▲'}</span>
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-amber-900 opacity-60" />
+                    )}
+                  </div>
                 </th>
                 <th className="py-2.5 px-3 whitespace-nowrap min-w-[140px] bg-amber-100/70 text-amber-900">
                   옵션명
@@ -325,11 +446,33 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                 <th className="py-2.5 px-3 whitespace-nowrap text-right bg-sky-100 text-sky-950">
                   종합소득세({settings.defaultIncomeTaxRate}%)
                 </th>
-                <th className="py-2.5 px-4 whitespace-nowrap text-right bg-blue-200 text-blue-950 font-black text-sm">
-                  최종 순수익
+                <th 
+                  onClick={() => handleSortToggle('netProfit')}
+                  className="py-2.5 px-4 whitespace-nowrap text-right bg-blue-200 text-blue-950 font-black text-sm cursor-pointer hover:bg-blue-300 transition-colors"
+                  title="클릭하여 순수익 높은순/낮은순 정렬"
+                >
+                  <div className="flex items-center justify-end space-x-1">
+                    <span>최종 순수익</span>
+                    {sortField === 'netProfit' ? (
+                      <span className="text-xs font-bold">{sortOrder === 'desc' ? '▼' : '▲'}</span>
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-blue-950 opacity-70" />
+                    )}
+                  </div>
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap text-center bg-blue-100 text-blue-900 font-bold">
-                  마진율
+                <th 
+                  onClick={() => handleSortToggle('marginRate')}
+                  className="py-2.5 px-3 whitespace-nowrap text-center bg-blue-100 text-blue-900 font-bold cursor-pointer hover:bg-blue-200 transition-colors"
+                  title="클릭하여 마진율 높은순/낮은순 정렬"
+                >
+                  <div className="flex items-center justify-center space-x-1">
+                    <span>마진율</span>
+                    {sortField === 'marginRate' ? (
+                      <span className="text-xs font-bold">{sortOrder === 'desc' ? '▼' : '▲'}</span>
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-blue-800 opacity-60" />
+                    )}
+                  </div>
                 </th>
                 <th className="py-2.5 px-2 whitespace-nowrap text-center bg-slate-200 text-slate-700">
                   관리
@@ -338,7 +481,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
             </thead>
 
             <tbody className="divide-y divide-slate-200 text-slate-800">
-              {filteredOrders.length === 0 ? (
+              {sortedOrders.length === 0 ? (
                 <tr>
                   <td colSpan={22} className="py-12 text-center text-slate-400">
                     <FileSpreadsheet className="w-10 h-10 mx-auto text-slate-300 mb-2" />
@@ -346,7 +489,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((ord, idx) => {
+                sortedOrders.map((ord, idx) => {
                   const isBundleSub = ord.isBundleShipping && ord.actualShippingCost === 0;
 
                   return (
@@ -392,7 +535,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                       {/* 4. Product Name */}
                       <td
                         onClick={() => handleStartEdit(ord, 'productName', ord.productName)}
-                        className="py-2 px-4 font-semibold text-slate-900 max-w-[280px] truncate hover:bg-yellow-50 cursor-pointer"
+                        className="py-2 px-4 text-slate-900 min-w-[240px] max-w-[320px] hover:bg-yellow-50 cursor-pointer"
                         title={ord.productName}
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'productName' ? (
@@ -403,16 +546,30 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             onBlur={() => handleSaveEdit(ord)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(ord)}
                             autoFocus
-                            className="w-full text-xs p-1 border rounded bg-white"
+                            className="w-full text-xs p-1 border rounded bg-white font-bold"
                           />
                         ) : (
-                          <div className="flex items-center space-x-1.5">
-                            <span className="truncate">{ord.productName}</span>
-                            {platform === 'coupang' && ord.feeRate === 6 && (
-                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0">
-                                쌀 6%
+                          <div>
+                            <div className="flex items-center space-x-1.5">
+                              <span className="font-bold text-slate-900 truncate">{ord.productName}</span>
+                              {platform === 'coupang' && ord.feeRate === 6 && (
+                                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0">
+                                  쌀 6%
+                                </span>
+                              )}
+                            </div>
+                            {/* Highlighted Net Profit Badge directly under Product Name */}
+                            <div className="mt-1 flex items-center space-x-1">
+                              <span className={`inline-flex items-center text-[10px] font-extrabold px-1.5 py-0.3 rounded border shadow-2xs ${
+                                ord.netProfit > 0
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                  : ord.netProfit < 0
+                                  ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                  : 'bg-slate-100 text-slate-600 border-slate-300'
+                              }`}>
+                                💰 순수익 {formatKRW(ord.netProfit, true)} ({ord.marginRate}%)
                               </span>
-                            )}
+                            </div>
                           </div>
                         )}
                       </td>
