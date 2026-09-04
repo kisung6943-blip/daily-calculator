@@ -70,7 +70,15 @@ export async function parseExcelOrders(
   let headerRowIndex = 0;
   for (let i = 0; i < Math.min(10, rawRows.length); i++) {
     const rowStr = rawRows[i].map((c) => String(c || '').trim()).join(' ');
-    if (rowStr.includes('상품명') || rowStr.includes('주문') || rowStr.includes('판매') || rowStr.includes('수량')) {
+    if (
+      rowStr.includes('상품명') ||
+      rowStr.includes('주문') ||
+      rowStr.includes('판매') ||
+      rowStr.includes('수량') ||
+      rowStr.includes('결제') ||
+      rowStr.includes('옵션ID') ||
+      rowStr.includes('배송비')
+    ) {
       headerRowIndex = i;
       break;
     }
@@ -86,22 +94,40 @@ export async function parseExcelOrders(
     );
   };
 
-  const dateIdx = getColIdx(['날짜', '주문일', '일자', '결제일', '정산일']);
-  const orderNoIdx = getColIdx(['주문번호', '상품주문번호', '주문ID', 'OrderNo']);
-  const productNoIdx = getColIdx(['상품번호', '상품코드', '옵션ID']);
-  const productIdx = getColIdx(['상품명', '상품명2', '품목명', '주문상품']);
-  const optionIdx = getColIdx(['옵션', '옵션명', '옵션정보', '선택옵션']);
-  const qtyIdx = getColIdx(['수량', '구매수량', '수']);
-  const recipientIdx = getColIdx(['수취인', '수령인', '수령자', '구매자', '고객명', '받는사람']);
-  const priceIdx = getColIdx(
-    ['총상품구매금액', '총 상품구매금액', '총 상품구매', '총주문금액', '판매가합계', '판매금액', '주문금액', '상품금액', '공급가'],
+  const dateIdx = getColIdx(['날짜', '주문일', '일자', '결제일', '정산일', '발주일', '결제일시', '주문일시', '발주의뢰일']);
+  const orderNoIdx = getColIdx(['주문번호', '상품주문번호', '주문ID', 'OrderNo', '발주번호', '묶음주문번호', '주문 번호']);
+  const productNoIdx = getColIdx(['상품번호', '상품코드', '옵션ID', '노출옵션ID', '등록옵션ID', '딜번호']);
+  const productIdx = getColIdx(['노출상품명', '등록상품명', '상품명', '상품명2', '품목명', '주문상품', '상품이름', '주문 상품명']);
+  const optionIdx = getColIdx(['옵션명', '옵션', '옵션정보', '선택옵션', '등록옵션명', '노출옵션명']);
+  const qtyIdx = getColIdx(['구매수량', '수량', '주문수량', '발주수량', '수']);
+  const recipientIdx = getColIdx(['수령인', '수취인', '수령자', '구매자', '고객명', '받는사람', '수령인명', '구매자명', '수취인명']);
+
+  let priceIdx = getColIdx(
+    [
+      '구매금액(수량X판매가)', '총상품구매금액', '총 상품구매금액', '총 상품구매',
+      '총결제금액', '결제금액', '구매금액', '총주문금액', '판매가합계', '판매금액',
+      '판매가', '판매가격', '옵션판매가', '상품판매가', '주문금액', '상품금액', '공급가', '결제액'
+    ],
     ['옵션+판매', '개별단가', '단가']
   );
-  const unitPriceIdx = getColIdx(['옵션+판매', '개별단가', '단가', '개당']);
-  const shippingIdx = getColIdx(['택배비', '총배송비', '배송비결제', '고객배송비', '배송비2', '배송비금액', '배송비'], ['구분', '유형', '조건', '방식', '종류']);
-  const feeIdx = getColIdx(['주문관리수료', '주문관리수수료', '결제수수료', '네이버수수료', '판매수수료', '서비스이용료', '서비스이용', '수수료', '수수료1', '수수료합', '중개수수료']);
+  if (priceIdx < 0) {
+    priceIdx = getColIdx(['금액', '가격', '결제']);
+  }
+
+  let unitPriceIdx = getColIdx(['옵션+판매', '개별단가', '단가', '개당', '옵션판매가', '판매가', '개별판매가']);
+  if (unitPriceIdx < 0) {
+    unitPriceIdx = priceIdx;
+  }
+
+  const shippingIdx = getColIdx(
+    ['택배비', '총배송비', '배송비결제', '고객배송비', '배송비2', '배송비금액', '배송비', '배송비부담'],
+    ['구분', '유형', '조건', '방식', '종류']
+  );
+  const feeIdx = getColIdx(
+    ['주문관리수료', '주문관리수수료', '결제수수료', '네이버수수료', '판매수수료', '서비스이용료', '서비스이용', '수수료', '수수료1', '수수료합', '중개수수료', '카테고리수수료', '수수료율']
+  );
   const kFeeIdx = getColIdx(['지식쇼핑', '매출연동', '매출연동수수료']);
-  const settlementIdx = getColIdx(['정산가', '정산금액', '결산예정', '정산예정금액']);
+  const settlementIdx = getColIdx(['정산가', '정산금액', '결산예정', '정산예정금액', '정산예정']);
   const costIdx = getColIdx(['원가', '매입원가', '개당원가']);
 
   const parsedOrders: OrderItem[] = [];
