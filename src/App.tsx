@@ -18,13 +18,19 @@ const STORAGE_SETTINGS_KEY = 'seller_settlement_settings_v1';
 export default function App() {
   // 1. Core State with LocalStorage Persistence
   const [orders, setOrders] = useState<OrderItem[]>(() => {
+    let rawOrders = INITIAL_ORDERS;
     try {
       const saved = localStorage.getItem(STORAGE_ORDERS_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) rawOrders = JSON.parse(saved);
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_ORDERS;
+    let rawCosts = INITIAL_COST_ITEMS;
+    try {
+      const savedCosts = localStorage.getItem(STORAGE_COSTS_KEY);
+      if (savedCosts) rawCosts = JSON.parse(savedCosts);
+    } catch (e) {}
+    return processAllOrders(rawOrders, rawCosts, { ...DEFAULT_SETTINGS, defaultIncomeTaxRate: 10 });
   });
 
   const [costItems, setCostItems] = useState<CostItem[]>(() => {
@@ -40,7 +46,14 @@ export default function App() {
   const [settings, setSettings] = useState<SettlementSettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_SETTINGS_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...DEFAULT_SETTINGS,
+          ...parsed,
+          defaultIncomeTaxRate: 10,
+        };
+      }
     } catch (e) {
       console.error(e);
     }
