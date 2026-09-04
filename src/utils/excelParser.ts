@@ -93,12 +93,12 @@ export async function parseExcelOrders(
   const optionIdx = getColIdx(['옵션', '옵션명', '옵션정보', '선택옵션']);
   const qtyIdx = getColIdx(['수량', '구매수량', '수']);
   const recipientIdx = getColIdx(['수취인', '수령인', '수령자', '구매자', '고객명', '받는사람']);
-  const priceIdx = getColIdx(['판매가', '판매금액', '주문금액', '상품금액', '총상품구매금액', '공급가']);
+  const priceIdx = getColIdx(['총주문금액', '판매가', '판매금액', '주문금액', '상품금액', '총상품구매금액', '공급가']);
   const unitPriceIdx = getColIdx(['단가', '개별단가', '옵션+판매']);
   const shippingIdx = getColIdx(['택배비', '총배송비', '배송비결제', '고객배송비', '배송비2', '배송비금액', '배송비'], ['구분', '유형', '조건', '방식', '종류']);
-  const feeIdx = getColIdx(['서비스이용', '수수료', '수수료1', '수수료합', '중개수수료']);
-  const kFeeIdx = getColIdx(['지식쇼핑', '매출연동']);
-  const settlementIdx = getColIdx(['정산가', '정산금액', '결산예정', '공급가']);
+  const feeIdx = getColIdx(['주문관리수료', '주문관리수수료', '결제수수료', '네이버수수료', '판매수수료', '서비스이용료', '서비스이용', '수수료', '수수료1', '수수료합', '중개수수료']);
+  const kFeeIdx = getColIdx(['지식쇼핑', '매출연동', '매출연동수수료']);
+  const settlementIdx = getColIdx(['정산가', '정산금액', '결산예정', '정산예정금액']);
   const costIdx = getColIdx(['원가', '매입원가', '개당원가']);
 
   const parsedOrders: OrderItem[] = [];

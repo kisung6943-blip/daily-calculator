@@ -130,11 +130,11 @@ export function recalculateOrder(
       settlementAmount = totalPrice - feeAmount;
     }
   } else if (platform === 'smartstore') {
-    // 스마트스토어: 결제수수료 + 지식쇼핑수수료
-    if (order.feeAmount !== undefined && order.knowledgeShoppingFee !== undefined) {
-      feeAmount = Math.abs(Number(order.feeAmount));
-      knowledgeShoppingFee = Math.abs(Number(order.knowledgeShoppingFee));
-      if (order.settlementAmount && order.settlementAmount > 0) {
+    // 스마트스토어: 결제수수료 + 지식쇼핑수수료 (또는 엑셀 실 정산금액)
+    if (order.feeAmount !== undefined || order.knowledgeShoppingFee !== undefined || (order.settlementAmount && Number(order.settlementAmount) > 0)) {
+      feeAmount = Math.abs(Number(order.feeAmount) || 0);
+      knowledgeShoppingFee = Math.abs(Number(order.knowledgeShoppingFee) || 0);
+      if (order.settlementAmount && Number(order.settlementAmount) > 0) {
         settlementAmount = Number(order.settlementAmount);
       } else {
         settlementAmount = totalPrice - (feeAmount + knowledgeShoppingFee);
