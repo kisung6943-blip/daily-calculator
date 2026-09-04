@@ -19,12 +19,12 @@ const PLATFORM_HEADER_MAP: Record<PlatformType, string[]> = {
  * Detect platform from header names
  */
 export function detectPlatformFromHeaders(headers: string[]): PlatformType {
-  const joined = headers.join(' ').toLowerCase();
+  const joined = headers.map((h) => String(h || '').replace(/\s+/g, '').toLowerCase()).join(' ');
 
   if (joined.includes('지식쇼핑') || joined.includes('네이버') || joined.includes('스마트스토어') || joined.includes('스토어팜')) {
     return 'smartstore';
   }
-  if (joined.includes('쿠팡') || joined.includes('배송비종류') || joined.includes('wing')) {
+  if (joined.includes('쿠팡') || joined.includes('배송비종류') || joined.includes('wing') || joined.includes('노출옵션id')) {
     return 'coupang';
   }
   if (joined.includes('오늘의집') || joined.includes('정산가(공급가)')) {
@@ -66,32 +66,53 @@ export async function parseExcelOrders(
     throw new Error('엑셀 파일에 데이터가 없습니다.');
   }
 
-  // Find the header row (typically row 0 or 1 where key words like '상품명', '주문번호', '수량' exist)
-  let headerRowIndex = 0;
-  for (let i = 0; i < Math.min(10, rawRows.length); i++) {
-    const rowStr = rawRows[i].map((c) => String(c || '').trim()).join(' ');
-    if (
-      rowStr.includes('상품명') ||
-      rowStr.includes('주문') ||
-      rowStr.includes('판매') ||
-      rowStr.includes('수량') ||
-      rowStr.includes('결제') ||
-      rowStr.includes('옵션ID') ||
-      rowStr.includes('배송비')
-    ) {
+  // Find the header row: A row with at least 3 filled cells and matching 2+ header keywords
+  let headerRowIndex = -1;
+  for (let i = 0; i < Math.min(25, rawRows.length); i++) {
+    const row = rawRows[i];
+    if (!row || row.length === 0) continue;
+
+    const filledCells = row.filter((c) => String(c || '').trim().length > 0).length;
+    if (filledCells < 3) continue;
+
+    const rowStr = row.map((c) => String(c || '').replace(/\s+/g, '')).join(' ');
+
+    let matchCount = 0;
+    if (rowStr.includes('상품명') || rowStr.includes('노출상품') || rowStr.includes('등록상품')) matchCount++;
+    if (rowStr.includes('주문번호') || rowStr.includes('주문id') || rowStr.includes('발주번호') || rowStr.includes('옵션id') || rowStr.includes('주문')) matchCount++;
+    if (rowStr.includes('수량') || rowStr.includes('구매수량')) matchCount++;
+    if (rowStr.includes('금액') || rowStr.includes('판매가') || rowStr.includes('결제') || rowStr.includes('단가')) matchCount++;
+    if (rowStr.includes('수취인') || rowStr.includes('수령') || rowStr.includes('구매자') || rowStr.includes('받는사람')) matchCount++;
+    if (rowStr.includes('배송비') || rowStr.includes('택배')) matchCount++;
+
+    if (matchCount >= 2) {
       headerRowIndex = i;
       break;
     }
   }
 
+  if (headerRowIndex < 0) {
+    headerRowIndex = 0;
+  }
+
   const rawHeaders = rawRows[headerRowIndex].map((h) => String(h || '').trim());
   const platform = forcedPlatform || detectPlatformFromHeaders(rawHeaders);
 
-  // Map header column indices
+  // Map header column indices (strips all whitespace from header cells before matching)
   const getColIdx = (keywords: string[], excludeKeywords: string[] = []): number => {
-    return rawHeaders.findIndex(
-      (h) => keywords.some((kw) => h.includes(kw)) && !excludeKeywords.some((ex) => h.includes(ex))
-    );
+    return rawHeaders.findIndex((h) => {
+      const cleanH = String(h || '').replace(/\s+/g, '');
+      return (
+        keywords.some((kw) => {
+          const cleanKw = kw.replace(/\s+/g, '');
+          return cleanH.includes(cleanKw);
+        }) &&
+        !excludeKeywords.some((ex) => {
+          const cleanEx = ex.replace(/\s+/g, '');
+          return cleanH.includes(cleanEx);
+        })
+      );
+    });
   };
 
   const dateIdx = getColIdx(['날짜', '주문일', '일자', '결제일', '정산일', '발주일', '결제일시', '주문일시', '발주의뢰일']);
