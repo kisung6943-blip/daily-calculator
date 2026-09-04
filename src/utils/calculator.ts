@@ -310,8 +310,21 @@ export function processAllOrders(
     const isMulti = groupItems.length > 1 && Boolean(groupItems[0].recipient.trim());
     const bundleGroupId = isMulti ? `BUNDLE-${key.replace(/[^a-zA-Z0-9가-힣]/g, '')}` : undefined;
 
+    // Pick representative item: the item with highest buyerShippingFee (so customer shipping fee is preserved)
+    let repIndex = 0;
+    if (isMulti) {
+      let maxFee = -1;
+      groupItems.forEach((item, idx) => {
+        const fee = Number(item.buyerShippingFee) || 0;
+        if (fee > maxFee) {
+          maxFee = fee;
+          repIndex = idx;
+        }
+      });
+    }
+
     groupItems.forEach((item, index) => {
-      const isSubItem = isMulti && index > 0;
+      const isSubItem = isMulti && index !== repIndex;
       const updated = recalculateOrder(
         {
           ...item,
