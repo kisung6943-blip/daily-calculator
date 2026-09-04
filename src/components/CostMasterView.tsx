@@ -273,7 +273,9 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
               id="input-search-cost"
               type="text"
               lang="ko"
-              style={{ imeMode: 'active' }}
+              autoCapitalize="off"
+              autoCorrect="off"
+              style={{ imeMode: 'active' as any }}
               placeholder="상품명, 옵션명, 공급처, 메모 검색..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
