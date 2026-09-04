@@ -126,16 +126,16 @@ export async function parseExcelOrders(
   let priceIdx = getColIdx(
     [
       '구매금액(수량X판매가)', '총상품구매금액', '총 상품구매금액', '총 상품구매',
-      '총결제금액', '결제금액', '구매금액', '총주문금액', '판매가합계', '판매금액',
+      '총결제금액', '결제금액', '결액', '구매금액', '총주문금액', '판매가합계', '판매금액',
       '판매가', '판매가격', '옵션판매가', '상품판매가', '주문금액', '상품금액', '공급가', '결제액'
     ],
     ['옵션+판매', '개별단가', '단가']
   );
   if (priceIdx < 0) {
-    priceIdx = getColIdx(['금액', '가격', '결제']);
+    priceIdx = getColIdx(['금액', '가격', '결제', '결액', '액']);
   }
 
-  let unitPriceIdx = getColIdx(['옵션+판매', '개별단가', '단가', '개당', '옵션판매가', '판매가', '개별판매가']);
+  let unitPriceIdx = getColIdx(['옵션+판매', '개별단가', '단가', '개당', '옵션판매가', '판매가', '개별판매가', '결액', '결제액']);
   if (unitPriceIdx < 0) {
     unitPriceIdx = priceIdx;
   }
@@ -170,6 +170,7 @@ export async function parseExcelOrders(
     auctionDefaultFee: 13,
   };
 
+  const currentYear = new Date().getFullYear();
   const todayStr = new Date().toISOString().split('T')[0];
 
   for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
@@ -190,6 +191,10 @@ export async function parseExcelOrders(
         const cleaned = rawDateVal.replace(/[^0-9]/g, '');
         if (cleaned.length >= 8) {
           orderDateRaw = `${cleaned.substring(0, 4)}-${cleaned.substring(4, 6)}-${cleaned.substring(6, 8)}`;
+        } else if (cleaned.length === 4) {
+          orderDateRaw = `${currentYear}-${cleaned.substring(0, 2)}-${cleaned.substring(2, 4)}`;
+        } else if (cleaned.length === 6) {
+          orderDateRaw = `20${cleaned.substring(0, 2)}-${cleaned.substring(2, 4)}-${cleaned.substring(4, 6)}`;
         } else {
           orderDateRaw = rawDateVal;
         }
@@ -197,7 +202,15 @@ export async function parseExcelOrders(
         orderDateRaw = todayStr;
       }
     }
-    const orderNumber = orderNoIdx >= 0 && row[orderNoIdx] ? String(row[orderNoIdx]).trim() : `ORD-${r}`;
+
+    let orderNumber = orderNoIdx >= 0 && row[orderNoIdx] ? String(row[orderNoIdx]).trim() : '';
+    if (!orderNumber && productNoIdx >= 0 && row[productNoIdx]) {
+      orderNumber = String(row[productNoIdx]).trim();
+    }
+    if (!orderNumber) {
+      orderNumber = `ORD-${r}`;
+    }
+
     const productNumber = productNoIdx >= 0 && row[productNoIdx] ? String(row[productNoIdx]).trim() : '';
     const optionName = optionIdx >= 0 && row[optionIdx] ? String(row[optionIdx]).trim() : '기본';
     const quantity = Math.max(1, Number(qtyIdx >= 0 ? row[qtyIdx] : 1) || 1);
