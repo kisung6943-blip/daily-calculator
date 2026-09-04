@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { 
   AlertCircle, 
+  AlertTriangle,
   CalendarDays,
   Check, 
   FileSpreadsheet, 
   Layers, 
   Loader2, 
+  ShieldCheck,
   Sparkles, 
   UploadCloud 
 } from 'lucide-react';
@@ -349,6 +351,40 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                       </span>
                     </div>
                   </label>
+                </div>
+
+                {/* Dynamic Safety Notice */}
+                <div className={`mt-3 p-2.5 rounded-lg border text-xs leading-relaxed ${
+                  importMode === 'replace_platform'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : importMode === 'append'
+                    ? 'bg-blue-50 border-blue-200 text-blue-900'
+                    : 'bg-rose-50 border-rose-200 text-rose-900'
+                }`}>
+                  {importMode === 'replace_platform' && (
+                    <div className="font-semibold flex items-center space-x-1">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mr-1" />
+                      <span>
+                        안전 안내: <strong>{PLATFORMS[parsedPreview.detectedPlatform]?.name || parsedPreview.detectedPlatform}</strong> 데이터만 교체됩니다. 기존 등록된 타 쇼핑몰(G마켓, 쿠팡, 스마트스토어 등)의 데이터는 <strong>절대 삭제되지 않고 그대로 유지</strong>됩니다!
+                      </span>
+                    </div>
+                  )}
+                  {importMode === 'append' && (
+                    <div className="font-semibold flex items-center space-x-1">
+                      <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mr-1" />
+                      <span>
+                        추가 안내: 기존 등록된 모든 쇼핑몰 데이터가 삭제되지 않고 새 데이터가 덧붙여집니다.
+                      </span>
+                    </div>
+                  )}
+                  {importMode === 'replace_all' && (
+                    <div className="font-semibold flex items-center space-x-1">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mr-1" />
+                      <span>
+                        경고: 기존 등록된 <strong>모든 쇼핑몰의 모든 주문 데이터가 싹 삭제</strong>되고 이 파일 내용으로 전체 초기화됩니다.
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
