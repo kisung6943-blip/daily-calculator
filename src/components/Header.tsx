@@ -115,6 +115,16 @@ export const Header: React.FC<HeaderProps> = ({
               <Settings className="w-4 h-4" />
             </button>
 
+            <button
+              id="btn-reset-sample"
+              onClick={onResetSampleData}
+              title="샘플 데이터 복원 (모든 쇼핑몰 샘플 엑셀 원본 복원)"
+              className="inline-flex items-center px-2.5 py-2 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1 text-slate-600" />
+              샘플 복원
+            </button>
+
             {onClearAllOrders && (
               <button
                 id="btn-clear-orders"
