@@ -20,49 +20,39 @@ export function findMatchingCost(
   optionName: string,
   costItems: CostItem[]
 ): { cost: number; isMatched: boolean; matchedItem?: CostItem } {
-  if (!productName || !costItems || costItems.length === 0) return { cost: 0, isMatched: false };
+  if (!productName) return { cost: 0, isMatched: false };
 
-  // Strip leading product numbers (e.g. 12345678_ 또는 [12345])
-  const cleanProductStr = productName.replace(/^\d+[_\s]+/, '').replace(/^\[\d+\][_\s]*/, '');
-  const normProduct = normalizeText(cleanProductStr);
+  const normProduct = normalizeText(productName);
   const normOption = normalizeText(optionName);
-
-  // Helper to check if an option name is considered a default/universal option
-  const isDefaultOption = (opt: string) => {
-    const o = normalizeText(opt);
-    return !o || o === '기본' || o === '선택없음' || o === '단품' || o === '일반' || o === 'default';
-  };
 
   // 1. Exact match (Product + Option)
   let found = costItems.find((item) => {
     const itemP = normalizeText(item.productName);
     const itemO = normalizeText(item.optionName);
-    return itemP === normProduct && (itemO === normOption || isDefaultOption(item.optionName) || isDefaultOption(optionName));
+    return itemP === normProduct && (itemO === normOption || (!normOption && !itemO));
   });
 
   if (found) {
     return { cost: found.cost, isMatched: true, matchedItem: found };
   }
 
-  // 2. Product Substring matching (contains product name)
+  // 2. Exact product name match (if option is empty or "기본")
   found = costItems.find((item) => {
     const itemP = normalizeText(item.productName);
-    if (!itemP) return false;
-    const pMatch = normProduct.includes(itemP) || itemP.includes(normProduct);
+    return itemP === normProduct;
+  });
+
+  if (found) {
+    return { cost: found.cost, isMatched: true, matchedItem: found };
+  }
+
+  // 3. Substring matching: product name contains cost product name and option matches
+  found = costItems.find((item) => {
+    const itemP = normalizeText(item.productName);
     const itemO = normalizeText(item.optionName);
-    const oMatch = isDefaultOption(item.optionName) || isDefaultOption(optionName) || normOption.includes(itemO) || itemO.includes(normOption);
+    const pMatch = normProduct.includes(itemP) || itemP.includes(normProduct);
+    const oMatch = !itemO || !normOption || normOption.includes(itemO) || itemO.includes(normOption);
     return pMatch && oMatch;
-  });
-
-  if (found) {
-    return { cost: found.cost, isMatched: true, matchedItem: found };
-  }
-
-  // 3. Fallback: Match by Product Name alone if cost item option is default
-  found = costItems.find((item) => {
-    const itemP = normalizeText(item.productName);
-    if (!itemP) return false;
-    return (normProduct.includes(itemP) || itemP.includes(normProduct)) && item.cost > 0;
   });
 
   if (found) {
@@ -125,14 +115,14 @@ export function recalculateOrder(
 
   // Platform fee calculation
   let feeRate = order.feeRate !== undefined ? Number(order.feeRate) : getPlatformFeeRate(platform, order.productName || '', settings);
-  let feeAmount = Math.abs(Number(order.feeAmount) || 0);
-  let knowledgeShoppingFee = Math.abs(Number(order.knowledgeShoppingFee) || 0);
-  let settlementAmount = Math.abs(Number(order.settlementAmount) || 0);
+  let feeAmount = Number(order.feeAmount) || 0;
+  let knowledgeShoppingFee = Number(order.knowledgeShoppingFee) || 0;
+  let settlementAmount = Number(order.settlementAmount) || 0;
 
   if (platform === 'ohouse') {
     // 오늘의집: 판매금액 - 정산금액 = 수수료 or calculated
     if (order.settlementAmount && order.settlementAmount > 0) {
-      settlementAmount = Math.abs(Number(order.settlementAmount));
+      settlementAmount = Number(order.settlementAmount);
       feeAmount = Math.max(0, totalPrice - settlementAmount);
       feeRate = totalPrice > 0 ? (feeAmount / totalPrice) * 100 : feeRate;
     } else {
@@ -141,13 +131,9 @@ export function recalculateOrder(
     }
   } else if (platform === 'smartstore') {
     // 스마트스토어: 결제수수료 + 지식쇼핑수수료
-    if (order.settlementAmount && order.settlementAmount > 0) {
-      settlementAmount = Math.abs(Number(order.settlementAmount));
-      if (order.feeAmount !== undefined) feeAmount = Math.abs(Number(order.feeAmount));
-      if (order.knowledgeShoppingFee !== undefined) knowledgeShoppingFee = Math.abs(Number(order.knowledgeShoppingFee));
-    } else if (order.feeAmount !== undefined && order.knowledgeShoppingFee !== undefined) {
-      feeAmount = Math.abs(Number(order.feeAmount));
-      knowledgeShoppingFee = Math.abs(Number(order.knowledgeShoppingFee));
+    if (order.feeAmount !== undefined && order.knowledgeShoppingFee !== undefined) {
+      feeAmount = Number(order.feeAmount);
+      knowledgeShoppingFee = Number(order.knowledgeShoppingFee);
       settlementAmount = totalPrice - (feeAmount + knowledgeShoppingFee);
     } else {
       const baseFee = Math.round(totalPrice * (settings.smartstoreBaseFee / 100));
@@ -158,12 +144,9 @@ export function recalculateOrder(
     }
   } else {
     // 쿠팡, 자사몰, 11번가, G마켓, 옥션
-    if (order.settlementAmount && order.settlementAmount > 0) {
-      settlementAmount = Math.abs(Number(order.settlementAmount));
-      if (order.feeAmount !== undefined) feeAmount = Math.abs(Number(order.feeAmount));
-    } else if (order.feeAmount !== undefined) {
-      feeAmount = Math.abs(Number(order.feeAmount));
-      settlementAmount = totalPrice - feeAmount;
+    if (order.feeAmount !== undefined && order.settlementAmount !== undefined && order.settlementAmount > 0) {
+      feeAmount = Number(order.feeAmount);
+      settlementAmount = Number(order.settlementAmount);
     } else {
       feeAmount = Math.round(totalPrice * (feeRate / 100) * 10) / 10;
       settlementAmount = Math.round(totalPrice - feeAmount);

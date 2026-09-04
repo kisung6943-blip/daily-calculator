@@ -3,7 +3,6 @@ import {
   BarChart3, 
   Database, 
   Download, 
-  FileJson,
   FileSpreadsheet, 
   Plus, 
   RotateCcw, 
@@ -24,8 +23,6 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onExportExcel: () => void;
   onResetSampleData: () => void;
-  onExportBackup?: () => void;
-  onImportBackup?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   unmatchedCostCount: number;
   totalOrdersCount: number;
 }
@@ -40,97 +37,69 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onExportExcel,
   onResetSampleData,
-  onExportBackup,
-  onImportBackup,
   unmatchedCostCount,
   totalOrdersCount,
 }) => {
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-2xs">
+    <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
       {/* Top Banner / Navigation */}
-      <div className="max-w-[98%] xl:max-w-[1600px] mx-auto px-3">
-        <div className="flex items-center justify-between h-11">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
           {/* Logo & Title */}
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-xs">
-              <FileSpreadsheet className="w-3.5 h-3.5" />
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-sm shadow-indigo-200">
+              <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center space-x-1.5">
-                <h1 className="font-bold text-xs text-slate-900 tracking-tight">
-                  쇼핑몰 멀티채널 일일 정산 관리기
+              <div className="flex items-center space-x-2">
+                <h1 className="font-bold text-lg text-slate-900 tracking-tight">
+                  쇼핑몰 멀티채널 일일 매출 및 순이익 정산 관리기
                 </h1>
-                <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <Sparkles className="w-2.5 h-2.5 mr-0.5 text-emerald-600" />
-                  한눈에 보기
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <Sparkles className="w-3 h-3 mr-1 text-emerald-600" />
+                  스마트 자동 정산
                 </span>
               </div>
+              <p className="text-xs text-slate-500">
+                원가 자동 매칭 · 7대 플랫폼 수수료 · 합배송 배송비 정산 · 부가세 & 종합소득세(10%) 계산
+              </p>
             </div>
           </div>
 
           {/* Global Action Buttons */}
-          <div className="flex items-center space-x-1.5">
+          <div className="flex items-center space-x-2">
             <button
               id="btn-upload-excel"
               onClick={onOpenUpload}
-              className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs transition-colors cursor-pointer"
             >
-              <UploadCloud className="w-3.5 h-3.5 mr-1" />
+              <UploadCloud className="w-4 h-4 mr-1.5" />
               엑셀 업로드
             </button>
 
             <button
               id="btn-export-excel"
               onClick={onExportExcel}
-              className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-medium bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-xs transition-colors cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5 mr-1" />
-              엑셀 다운로드
+              <Download className="w-4 h-4 mr-1.5 text-slate-600" />
+              정산 엑셀 다운로드
             </button>
-
-            {onExportBackup && (
-              <button
-                id="btn-export-backup"
-                onClick={onExportBackup}
-                title="데이터 백업 파일 저장 (.json)"
-                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-2xs transition-colors cursor-pointer"
-              >
-                <FileJson className="w-3.5 h-3.5 mr-1 text-sky-300" />
-                백업 저장
-              </button>
-            )}
-
-            {onImportBackup && (
-              <label
-                id="lbl-import-backup"
-                title="다른 PC 백업 파일 불러오기 (.json)"
-                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 shadow-2xs transition-colors cursor-pointer"
-              >
-                <FileJson className="w-3.5 h-3.5 mr-1 text-indigo-600" />
-                백업 복원
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={onImportBackup}
-                  className="hidden"
-                />
-              </label>
-            )}
 
             <button
               id="btn-cost-master-top"
               onClick={() => onSelectTab('cost_master')}
-              className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border shadow-2xs transition-colors cursor-pointer relative ${
+              className={`inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-medium border shadow-xs transition-colors cursor-pointer relative ${
                 currentTab === 'cost_master'
                   ? 'bg-slate-900 text-white border-slate-900'
                   : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
               }`}
             >
-              <Database className="w-3.5 h-3.5 mr-1 text-indigo-500" />
+              <Database className="w-4 h-4 mr-1.5 text-indigo-500" />
               원가 관리표
               {unmatchedCostCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-rose-500 text-white animate-pulse">
-                  {unmatchedCostCount}
+                <span className="ml-1.5 px-1.5 py-0.2 text-xs font-bold rounded-full bg-rose-500 text-white animate-pulse">
+                  {unmatchedCostCount}건 미등록
                 </span>
               )}
             </button>
@@ -139,24 +108,24 @@ export const Header: React.FC<HeaderProps> = ({
               id="btn-settings"
               onClick={onOpenSettings}
               title="정산 및 세금 설정"
-              className="p-1 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
+              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
             >
-              <Settings className="w-3.5 h-3.5" />
+              <Settings className="w-4 h-4" />
             </button>
 
             <button
               id="btn-reset-sample"
               onClick={onResetSampleData}
-              title="샘플 데이터 복원"
-              className="p-1 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
+              title="샘플 데이터 복원 (사용자 사진 예시 08/12, 08/13)"
+              className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* Date Filter & Tab Bar */}
-        <div className="flex items-center justify-between gap-2 py-0.5 border-t border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 pb-2.5 border-t border-slate-100">
           {/* Main Navigation Tabs */}
           <div className="flex items-center space-x-1 overflow-x-auto scrollbar-none py-1">
             <button

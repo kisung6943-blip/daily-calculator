@@ -14,7 +14,6 @@ import { exportOrdersToExcel } from './utils/excelParser';
 const STORAGE_ORDERS_KEY = 'seller_settlement_orders_v1';
 const STORAGE_COSTS_KEY = 'seller_settlement_costs_v1';
 const STORAGE_SETTINGS_KEY = 'seller_settlement_settings_v1';
-const STORAGE_AD_SPENDS_KEY = 'seller_settlement_ad_spends_v1';
 
 export default function App() {
   // 1. Core State with LocalStorage Persistence
@@ -48,16 +47,6 @@ export default function App() {
     return DEFAULT_SETTINGS;
   });
 
-  const [adSpends, setAdSpends] = useState<Record<string, number>>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_AD_SPENDS_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return {};
-  });
-
   // 2. Navigation & Filter State
   const [currentTab, setCurrentTab] = useState<'dashboard' | PlatformType | 'cost_master'>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string>('all');
@@ -86,20 +75,6 @@ export default function App() {
     } catch (e) {}
   }, [settings]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_AD_SPENDS_KEY, JSON.stringify(adSpends));
-    } catch (e) {}
-  }, [adSpends]);
-
-  const handleUpdateAdSpend = (platform: PlatformType, date: string, amount: number) => {
-    const key = `${platform}__${date}`;
-    setAdSpends((prev) => ({
-      ...prev,
-      [key]: Math.max(0, amount),
-    }));
-  };
-
   // Available unique dates
   const availableDates = useMemo(() => {
     const set = new Set<string>();
@@ -122,37 +97,8 @@ export default function App() {
 
   // Order CRUD Handlers
   const handleUpdateOrder = (updated: OrderItem) => {
-    let currentCosts = [...costItems];
-    if (updated.unitCost && updated.unitCost > 0 && updated.productName) {
-      const pNorm = updated.productName.trim().toLowerCase();
-      const oNorm = (updated.optionName || '').trim().toLowerCase();
-      const existingIdx = currentCosts.findIndex(
-        (c) => c.productName.trim().toLowerCase() === pNorm && (c.optionName || '').trim().toLowerCase() === oNorm
-      );
-      if (existingIdx >= 0) {
-        currentCosts[existingIdx] = {
-          ...currentCosts[existingIdx],
-          cost: updated.unitCost,
-          updatedAt: new Date().toISOString().split('T')[0],
-        };
-      } else {
-        currentCosts = [
-          {
-            id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            productName: updated.productName,
-            optionName: updated.optionName || '기본',
-            cost: updated.unitCost,
-            category: '주방용품/부품',
-            updatedAt: new Date().toISOString().split('T')[0],
-          },
-          ...currentCosts,
-        ];
-      }
-      setCostItems(currentCosts);
-    }
-
     const updatedList = orders.map((o) => (o.id === updated.id ? updated : o));
-    setOrders(processAllOrders(updatedList, currentCosts, settings));
+    setOrders(processAllOrders(updatedList, costItems, settings));
   };
 
   const handleDeleteOrder = (id: string) => {
@@ -208,39 +154,20 @@ export default function App() {
   const handleQuickCostSave = (
     orderId: string,
     cost: number,
-    _saveToMaster: boolean,
+    saveToMaster: boolean,
     costItemData?: Partial<CostItem>
   ) => {
     let currentCosts = [...costItems];
-    const targetOrder = orders.find((o) => o.id === orderId);
-    const pName = costItemData?.productName || targetOrder?.productName || '';
-    const oName = costItemData?.optionName || targetOrder?.optionName || '기본';
-
-    if (pName && cost > 0) {
-      const pNorm = pName.trim().toLowerCase();
-      const oNorm = oName.trim().toLowerCase();
-      const existingIdx = currentCosts.findIndex(
-        (c) => c.productName.trim().toLowerCase() === pNorm && (c.optionName || '').trim().toLowerCase() === oNorm
-      );
-      if (existingIdx >= 0) {
-        currentCosts[existingIdx] = {
-          ...currentCosts[existingIdx],
-          cost,
-          updatedAt: new Date().toISOString().split('T')[0],
-        };
-      } else {
-        currentCosts = [
-          {
-            id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            productName: pName,
-            optionName: oName,
-            cost,
-            category: costItemData?.category || '주방용품/부품',
-            updatedAt: new Date().toISOString().split('T')[0],
-          },
-          ...currentCosts,
-        ];
-      }
+    if (saveToMaster && costItemData) {
+      const newItem: CostItem = {
+        id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        productName: costItemData.productName || '',
+        optionName: costItemData.optionName || '기본',
+        cost,
+        category: costItemData.category || '주방용품/부품',
+        updatedAt: new Date().toISOString().split('T')[0],
+      };
+      currentCosts = [newItem, ...costItems];
       setCostItems(currentCosts);
     }
 
@@ -264,38 +191,13 @@ export default function App() {
 
   // Excel Batch Import Handler
   const handleImportOrders = (newOrders: OrderItem[], appendMode: boolean) => {
-    // 1. Auto-preserve all previously entered order costs into costItems DB
-    let currentCosts = [...costItems];
-    const existingCostKeys = new Set(
-      currentCosts.map((c) => `${c.productName.trim().toLowerCase()}__${(c.optionName || '').trim().toLowerCase()}`)
-    );
-
-    orders.forEach((ord) => {
-      if (ord.unitCost > 0 && ord.productName) {
-        const key = `${ord.productName.trim().toLowerCase()}__${(ord.optionName || '').trim().toLowerCase()}`;
-        if (!existingCostKeys.has(key)) {
-          existingCostKeys.add(key);
-          currentCosts.push({
-            id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            productName: ord.productName,
-            optionName: ord.optionName || '기본',
-            cost: ord.unitCost,
-            category: '주방용품/부품',
-            updatedAt: new Date().toISOString().split('T')[0],
-          });
-        }
-      }
-    });
-
-    setCostItems(currentCosts);
-
     let mergedOrders: OrderItem[];
     if (appendMode) {
       mergedOrders = [...newOrders, ...orders];
     } else {
       mergedOrders = newOrders;
     }
-    const processed = processAllOrders(mergedOrders, currentCosts, settings);
+    const processed = processAllOrders(mergedOrders, costItems, settings);
     setOrders(processed);
     setCurrentTab('dashboard');
   };
@@ -320,77 +222,6 @@ export default function App() {
     );
   };
 
-  // JSON Data Backup Export
-  const handleExportBackup = () => {
-    const mappedOrders = orders.map((o: any) => ({
-      ...o,
-      salesAmount: Number(o.salesAmount ?? o.totalPrice ?? (o.unitPrice ? o.unitPrice * (o.quantity || 1) : 0)) || 0,
-    }));
-    const backupData = {
-      version: '1.0',
-      exportedAt: new Date().toISOString(),
-      orders: mappedOrders,
-      costItems,
-      costMaster: costItems,
-      settings,
-      adSpends,
-    };
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(backupData, null, 2))}`;
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', jsonString);
-    downloadAnchor.setAttribute('download', `daily_calculator_backup_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  };
-
-  // JSON Data Backup Import / Restore
-  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const content = event.target?.result as string;
-        const parsed = JSON.parse(content);
-        let restoredCount = 0;
-
-        const importedCosts = parsed.costItems || parsed.costMaster;
-        if (importedCosts && Array.isArray(importedCosts)) {
-          setCostItems(importedCosts);
-          restoredCount++;
-        }
-        if (parsed.orders && Array.isArray(parsed.orders)) {
-          const normOrders = parsed.orders.map((o: any) => ({
-            ...o,
-            salesAmount: Number(o.salesAmount ?? o.totalPrice ?? (o.unitPrice ? o.unitPrice * (o.quantity || 1) : 0)) || 0,
-          }));
-          setOrders(processAllOrders(normOrders, importedCosts || costItems, settings));
-          restoredCount++;
-        }
-        if (parsed.settings) {
-          setSettings(parsed.settings);
-          restoredCount++;
-        }
-        if (parsed.adSpends) {
-          setAdSpends(parsed.adSpends);
-          restoredCount++;
-        }
-
-        if (restoredCount > 0) {
-          alert('백업 데이터(주문내역, 원가표, 설정값, 광고비)를 성공적으로 복원했습니다!');
-        } else {
-          alert('백업 파일에서 올바른 데이터를 찾을 수 없습니다.');
-        }
-      } catch (err) {
-        alert('백업 파일을 읽는 중 오류가 발생했습니다. 올바른 .json 파일인지 확인해 주세요.');
-      }
-    };
-    reader.readAsText(file, 'UTF-8');
-    e.target.value = '';
-  };
-
   // Handle Setting Save
   const handleSaveSettings = (newSettings: SettlementSettings) => {
     setSettings(newSettings);
@@ -410,20 +241,17 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onExportExcel={handleGlobalExport}
         onResetSampleData={handleResetSampleData}
-        onExportBackup={handleExportBackup}
-        onImportBackup={handleImportBackup}
         unmatchedCostCount={unmatchedCostCount}
         totalOrdersCount={orders.length}
       />
 
       {/* Main View Area */}
-      <main className="flex-1 max-w-[99%] xl:max-w-[1700px] w-full mx-auto px-2 py-2">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {currentTab === 'dashboard' && (
           <DashboardView
             orders={orders}
             selectedDate={selectedDate}
             settings={settings}
-            adSpends={adSpends}
             onSelectPlatform={(p) => setCurrentTab(p)}
             onOpenQuickCostModal={(ord) => setQuickCostTargetOrder(ord)}
           />
@@ -432,7 +260,6 @@ export default function App() {
         {currentTab === 'cost_master' && (
           <CostMasterView
             costItems={costItems}
-            orders={orders}
             onAddCostItem={handleAddCostItem}
             onUpdateCostItem={handleUpdateCostItem}
             onDeleteCostItem={handleDeleteCostItem}
@@ -448,13 +275,11 @@ export default function App() {
             costItems={costItems}
             settings={settings}
             selectedDate={selectedDate}
-            adSpends={adSpends}
             onUpdateOrder={handleUpdateOrder}
             onDeleteOrder={handleDeleteOrder}
             onAddOrder={handleAddOrder}
             onOpenQuickCostModal={(ord) => setQuickCostTargetOrder(ord)}
             onOpenUploadModal={() => setIsUploadOpen(true)}
-            onUpdateAdSpend={handleUpdateAdSpend}
           />
         )}
       </main>

@@ -15,13 +15,12 @@ import {
   Trash2, 
   UploadCloud 
 } from 'lucide-react';
-import { CostItem, OrderItem } from '../types';
+import { CostItem } from '../types';
 import { formatKRW } from '../utils/calculator';
 import { exportCostMasterToExcel, parseCostMasterExcel } from '../utils/excelParser';
 
 interface CostMasterViewProps {
   costItems: CostItem[];
-  orders?: OrderItem[];
   onAddCostItem: (item: CostItem) => void;
   onUpdateCostItem: (item: CostItem) => void;
   onDeleteCostItem: (id: string) => void;
@@ -31,7 +30,6 @@ interface CostMasterViewProps {
 
 export const CostMasterView: React.FC<CostMasterViewProps> = ({
   costItems,
-  orders = [],
   onAddCostItem,
   onUpdateCostItem,
   onDeleteCostItem,
@@ -42,11 +40,6 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCostValue, setEditCostValue] = useState<string>('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Bulk Unmatched Modal State
-  const [showUnmatchedModal, setShowUnmatchedModal] = useState(false);
-  const [unmatchedInputs, setUnmatchedInputs] = useState<Record<string, number>>({});
 
   // Add Item Modal/Form state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -61,74 +54,7 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteText, setPasteText] = useState('');
 
-  // Extract unique unmatched products from orders
-  const unmatchedProducts = React.useMemo(() => {
-    const map = new Map<string, { productName: string; optionName: string; avgPrice: number; count: number }>();
-    (orders || []).forEach((o) => {
-      if (!o.unitCost || o.unitCost === 0 || !o.isCostMatched) {
-        const key = `${o.productName.trim()}__${(o.optionName || '기본').trim()}`;
-        if (!map.has(key)) {
-          map.set(key, {
-            productName: o.productName,
-            optionName: o.optionName || '기본',
-            avgPrice: o.unitPrice || 0,
-            count: 1,
-          });
-        } else {
-          const item = map.get(key)!;
-          item.count += 1;
-        }
-      }
-    });
-    return Array.from(map.values());
-  }, [orders]);
-
-  const handleOpenUnmatchedModal = () => {
-    const init: Record<string, number> = {};
-    unmatchedProducts.forEach((p) => {
-      const key = `${p.productName}__${p.optionName}`;
-      init[key] = 0;
-    });
-    setUnmatchedInputs(init);
-    setShowUnmatchedModal(true);
-  };
-
-  const handleApplyMarginRatio = (ratio: number) => {
-    const updated: Record<string, number> = { ...unmatchedInputs };
-    unmatchedProducts.forEach((p) => {
-      const key = `${p.productName}__${p.optionName}`;
-      updated[key] = Math.round(p.avgPrice * ratio);
-    });
-    setUnmatchedInputs(updated);
-  };
-
-  const handleSaveUnmatchedBulk = () => {
-    const itemsToAdd: CostItem[] = [];
-    const today = new Date().toISOString().split('T')[0];
-
-    unmatchedProducts.forEach((p, idx) => {
-      const key = `${p.productName}__${p.optionName}`;
-      const costVal = unmatchedInputs[key] || 0;
-      if (costVal > 0) {
-        itemsToAdd.push({
-          id: `cost-bulk-${Date.now()}-${idx}`,
-          productName: p.productName,
-          optionName: p.optionName,
-          cost: costVal,
-          category: '일괄입력',
-          updatedAt: today,
-        });
-      }
-    });
-
-    if (itemsToAdd.length > 0) {
-      onBulkAddCostItems(itemsToAdd);
-      alert(`${itemsToAdd.length}개 품목의 원가가 성공적으로 등록되어 정산표에 즉시 반영되었습니다!`);
-      setShowUnmatchedModal(false);
-    } else {
-      alert('원가가 0보다 큰 품목이 없습니다. 원가를 입력해 주세요.');
-    }
-  };
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Categories list
   const categories = Array.from(new Set(costItems.map((c) => c.category || '기타'))).filter(Boolean);
@@ -283,17 +209,6 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
-            {unmatchedProducts.length > 0 && (
-              <button
-                id="btn-open-unmatched-bulk"
-                onClick={handleOpenUnmatchedModal}
-                className="inline-flex items-center px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-rose-600 to-pink-600 text-white hover:from-rose-700 hover:to-pink-700 shadow-md transition-all animate-pulse cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4 mr-1.5" />
-                ⚡ 미등록 {unmatchedProducts.length}개 품목 1초 일괄 입력
-              </button>
-            )}
-
             <button
               id="btn-reapply-cost"
               onClick={onApplyCostsToOrders}
@@ -661,129 +576,6 @@ WMF 압력솥 계기패킹	기본	7500
               >
                 일괄 분석 및 등록하기
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bulk Unmatched Products Fast-Fill Modal */}
-      {showUnmatchedModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full p-6 animate-in fade-in zoom-in duration-150 flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center">
-                  <Sparkles className="w-5 h-5 mr-2 text-rose-600" />
-                  미등록 상품 {unmatchedProducts.length}개 1초 일괄 원가 입력기
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  한 번에 원가를 지정하시면 모든 정산표와 Master DB에 영구 등록되며 엑셀 재업로드 시에도 100% 자동 유지됩니다.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowUnmatchedModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Quick Preset Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-2 py-3 bg-rose-50/50 px-3 rounded-lg border border-rose-100 my-3">
-              <span className="text-xs font-bold text-rose-900 flex items-center">
-                ⚡ 빠른 자동 계산 추정 툴:
-              </span>
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => handleApplyMarginRatio(0.3)}
-                  className="px-2.5 py-1 rounded bg-white text-rose-700 font-semibold border border-rose-200 hover:bg-rose-100 text-xs transition-colors cursor-pointer"
-                >
-                  판매가의 30%로 채우기
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyMarginRatio(0.4)}
-                  className="px-2.5 py-1 rounded bg-white text-rose-700 font-semibold border border-rose-200 hover:bg-rose-100 text-xs transition-colors cursor-pointer"
-                >
-                  판매가의 40%로 채우기
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyMarginRatio(0.5)}
-                  className="px-2.5 py-1 rounded bg-white text-rose-700 font-semibold border border-rose-200 hover:bg-rose-100 text-xs transition-colors cursor-pointer"
-                >
-                  판매가의 50%로 채우기
-                </button>
-              </div>
-            </div>
-
-            {/* Products Table */}
-            <div className="flex-1 overflow-y-auto min-h-[250px] border border-slate-200 rounded-lg">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
-                  <tr>
-                    <th className="py-2 px-3">#</th>
-                    <th className="py-2 px-3">상품명</th>
-                    <th className="py-2 px-3">옵션명</th>
-                    <th className="py-2 px-3 text-right">평균 판매가</th>
-                    <th className="py-2 px-3 text-right text-rose-950 font-bold bg-rose-100 min-w-[140px]">
-                      개당 매입원가(원)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {unmatchedProducts.map((p, idx) => {
-                    const key = `${p.productName}__${p.optionName}`;
-                    const currentVal = unmatchedInputs[key] || 0;
-                    return (
-                      <tr key={key} className="hover:bg-slate-50">
-                        <td className="py-2 px-3 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
-                        <td className="py-2 px-3 font-semibold text-slate-900">{p.productName}</td>
-                        <td className="py-2 px-3 text-slate-600">{p.optionName}</td>
-                        <td className="py-2 px-3 text-right text-slate-500 font-mono">
-                          {formatKRW(p.avgPrice)}
-                        </td>
-                        <td className="py-1.5 px-3 text-right bg-rose-50">
-                          <input
-                            type="number"
-                            value={currentVal || ''}
-                            placeholder="원가 입력"
-                            onChange={(e) => {
-                              const v = Number(e.target.value) || 0;
-                              setUnmatchedInputs((prev) => ({ ...prev, [key]: v }));
-                            }}
-                            className="w-28 text-right p-1.5 text-xs border border-rose-300 rounded font-bold text-rose-900 bg-white focus:ring-2 focus:ring-rose-500"
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-200">
-              <span className="text-xs text-slate-500 font-medium">
-                원가가 입력된 품목만 자동으로 Master DB에 등록됩니다.
-              </span>
-              <div className="flex space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowUnmatchedModal(false)}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  취소
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveUnmatchedBulk}
-                  className="px-5 py-2 rounded-lg text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 shadow-md transition-colors cursor-pointer"
-                >
-                  {unmatchedProducts.length}개 품목 원가 1초 일괄 저장하기
-                </button>
-              </div>
             </div>
           </div>
         </div>

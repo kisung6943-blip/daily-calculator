@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   AlertCircle, 
+  CalendarDays,
   Check, 
   FileSpreadsheet, 
   Layers, 
@@ -29,6 +30,8 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
   onImportOrders,
 }) => {
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType | 'auto'>('auto');
+  const [useCustomDate, setUseCustomDate] = useState(false);
+  const [targetDate, setTargetDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedPreview, setParsedPreview] = useState<{
@@ -42,14 +45,17 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleFileChange = async (incomingFile: File) => {
+  const handleFileChange = async (incomingFile: File, overrideCustomDate?: boolean, dateValue?: string) => {
     setFile(incomingFile);
     setErrorMsg(null);
     setIsProcessing(true);
 
+    const isCustom = overrideCustomDate !== undefined ? overrideCustomDate : useCustomDate;
+    const dateToUse = isCustom ? (dateValue || targetDate) : undefined;
+
     try {
       const forced = selectedPlatform === 'auto' ? undefined : selectedPlatform;
-      const res = await parseExcelOrders(incomingFile, forced, settings);
+      const res = await parseExcelOrders(incomingFile, forced, settings, dateToUse);
       
       // Auto-match cost items & bundle delivery
       const processed = processAllOrders(res.orders, costItems, settings);
@@ -95,6 +101,56 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
 
         {/* Modal Content */}
         <div className="flex-1 overflow-y-auto space-y-4 text-xs pr-1">
+          {/* Date Selector Section */}
+          <div className="bg-indigo-50/70 rounded-xl border border-indigo-200/80 p-3.5 space-y-2">
+            <div className="flex items-center space-x-2 text-indigo-900 font-bold">
+              <CalendarDays className="w-4 h-4 text-indigo-600" />
+              <span>정산 적용 날짜 설정:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 text-xs">
+              <label className="flex items-center space-x-1.5 cursor-pointer font-medium text-slate-800">
+                <input
+                  type="radio"
+                  name="uploadDateMode"
+                  checked={!useCustomDate}
+                  onChange={() => {
+                    setUseCustomDate(false);
+                    if (file) handleFileChange(file, false, targetDate);
+                  }}
+                  className="text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>엑셀 파일 내 날짜 자동 감지</span>
+              </label>
+
+              <label className="flex items-center space-x-1.5 cursor-pointer font-medium text-slate-800">
+                <input
+                  type="radio"
+                  name="uploadDateMode"
+                  checked={useCustomDate}
+                  onChange={() => {
+                    setUseCustomDate(true);
+                    if (file) handleFileChange(file, true, targetDate);
+                  }}
+                  className="text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>특정 정산 날짜 지정:</span>
+              </label>
+
+              {useCustomDate && (
+                <input
+                  type="date"
+                  value={targetDate}
+                  onChange={(e) => {
+                    const newD = e.target.value;
+                    setTargetDate(newD);
+                    if (file) handleFileChange(file, true, newD);
+                  }}
+                  className="bg-white border border-indigo-300 rounded-lg px-2.5 py-1 text-xs font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500 shadow-xs cursor-pointer"
+                />
+              )}
+            </div>
+          </div>
+
           {/* Platform Selector */}
           <div>
             <label className="block font-bold text-slate-800 mb-1.5">
@@ -103,7 +159,10 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
             <div className="grid grid-cols-4 gap-2">
               <button
                 type="button"
-                onClick={() => setSelectedPlatform('auto')}
+                onClick={() => {
+                  setSelectedPlatform('auto');
+                  if (file) handleFileChange(file);
+                }}
                 className={`p-2 rounded-lg border text-center font-bold transition-all cursor-pointer ${
                   selectedPlatform === 'auto'
                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
@@ -117,7 +176,10 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setSelectedPlatform(p.id)}
+                  onClick={() => {
+                    setSelectedPlatform(p.id);
+                    if (file) handleFileChange(file);
+                  }}
                   className={`p-2 rounded-lg border text-center font-semibold transition-all cursor-pointer ${
                     selectedPlatform === p.id
                       ? `${p.bgColor} ${p.textColor} ${p.borderColor} font-bold shadow-xs`
@@ -180,13 +242,11 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                 </span>
                 <span className="text-[11px] text-slate-500 font-medium">
                   원가 매칭률:{' '}
-                  {parsedPreview.orders.length > 0
-                    ? Math.round(
-                        (parsedPreview.orders.filter((o) => o.isCostMatched).length /
-                          parsedPreview.orders.length) *
-                          100
-                      )
-                    : 0}
+                  {Math.round(
+                    (parsedPreview.orders.filter((o) => o.isCostMatched).length /
+                      parsedPreview.orders.length) *
+                      100
+                  )}
                   %
                 </span>
               </div>

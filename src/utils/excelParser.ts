@@ -6,7 +6,7 @@ import { recalculateOrder } from './calculator';
  * Platform Header Keywords for Auto-Detection
  */
 const PLATFORM_HEADER_MAP: Record<PlatformType, string[]> = {
-  smartstore: ['상품주문번호', '스마트스토어', '네이버페이', '지식쇼핑', '결산예정액', '수수료합', '스토어팜', '정산예정금액'],
+  smartstore: ['상품주문번호', '스마트스토어', '네이버페이', '지식쇼핑', '결산예정액', '수수료합', '스토어팜'],
   coupang: ['옵션ID', '쿠팡', '배송비종류', 'Wing', '총상품구매금액'],
   ohouse: ['오늘의집', '정산가(공급가)', '판매금액3', '정산금액'],
   homepage: ['총결제금액', '총배송비', '옵션+판매', '자사몰', '홈페이지'],
@@ -19,10 +19,9 @@ const PLATFORM_HEADER_MAP: Record<PlatformType, string[]> = {
  * Detect platform from header names
  */
 export function detectPlatformFromHeaders(headers: string[]): PlatformType {
-  const safeHeaders = (headers || []).map((h) => String(h ?? '').toLowerCase());
-  const joined = safeHeaders.join(' ');
+  const joined = headers.join(' ').toLowerCase();
 
-  if (joined.includes('지식쇼핑') || joined.includes('네이버') || joined.includes('스마트스토어') || joined.includes('스토어팜') || joined.includes('상품주문번호')) {
+  if (joined.includes('지식쇼핑') || joined.includes('네이버') || joined.includes('스마트스토어') || joined.includes('스토어팜')) {
     return 'smartstore';
   }
   if (joined.includes('쿠팡') || joined.includes('배송비종류') || joined.includes('wing')) {
@@ -48,28 +47,13 @@ export function detectPlatformFromHeaders(headers: string[]): PlatformType {
 }
 
 /**
- * Format raw date string into YYYY-MM-DD
- */
-function cleanDateStr(rawDate: any): string {
-  if (!rawDate) return new Date().toISOString().split('T')[0];
-  const str = String(rawDate).trim();
-  const dateMatch = str.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
-  if (dateMatch) {
-    const yyyy = dateMatch[1];
-    const mm = dateMatch[2].padStart(2, '0');
-    const dd = dateMatch[3].padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  }
-  return str.slice(0, 10) || new Date().toISOString().split('T')[0];
-}
-
-/**
  * Parse an Excel or CSV file buffer into OrderItem array
  */
 export async function parseExcelOrders(
   file: File,
   forcedPlatform?: PlatformType,
-  settings?: SettlementSettings
+  settings?: SettlementSettings,
+  forcedDate?: string
 ): Promise<{ orders: OrderItem[]; detectedPlatform: PlatformType }> {
   const data = await file.arrayBuffer();
   const workbook = XLSX.read(data, { type: 'array' });
@@ -78,112 +62,42 @@ export async function parseExcelOrders(
 
   // Convert to array of arrays
   const rawRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-  if (!rawRows || rawRows.length === 0) {
+  if (rawRows.length === 0) {
     throw new Error('엑셀 파일에 데이터가 없습니다.');
   }
 
-  // Find the header row safely (skip single-cell title rows)
-  let headerRowIndex = -1;
-  for (let i = 0; i < Math.min(20, rawRows.length); i++) {
-    const row = rawRows[i];
-    if (!row || !Array.isArray(row)) continue;
-    const safeCells = Array.from(row).map((c) => String(c ?? '').replace(/\s+/g, '').toLowerCase());
-    const nonEmptyCells = safeCells.filter((c) => c.length > 0);
-
-    // Skip single-cell title rows
-    if (nonEmptyCells.length < 2) continue;
-
-    const hasProduct = safeCells.some((c) => c.includes('상품명') || c.includes('상품') || c.includes('품목'));
-    const hasOrder = safeCells.some(
-      (c) =>
-        c.includes('주문번호') ||
-        c.includes('상품주문번호') ||
-        c.includes('주문') ||
-        c.includes('수량') ||
-        c.includes('정산') ||
-        c.includes('수취인') ||
-        c.includes('결제')
-    );
-
-    if (hasProduct && hasOrder) {
+  // Find the header row (typically row 0 or 1 where key words like '상품명', '주문번호', '수량' exist)
+  let headerRowIndex = 0;
+  for (let i = 0; i < Math.min(10, rawRows.length); i++) {
+    const rowStr = rawRows[i].map((c) => String(c || '').trim()).join(' ');
+    if (rowStr.includes('상품명') || rowStr.includes('주문') || rowStr.includes('판매') || rowStr.includes('수량')) {
       headerRowIndex = i;
       break;
     }
   }
 
-  // Fallback search if strict match failed
-  if (headerRowIndex === -1) {
-    for (let i = 0; i < Math.min(20, rawRows.length); i++) {
-      const row = rawRows[i];
-      if (!row || !Array.isArray(row)) continue;
-      const safeCells = Array.from(row).map((c) => String(c ?? '').trim());
-      if (safeCells.filter(Boolean).length >= 2) {
-        const joined = safeCells.join(' ');
-        if (joined.includes('상품명') || joined.includes('주문') || joined.includes('판매') || joined.includes('수량')) {
-          headerRowIndex = i;
-          break;
-        }
-      }
-    }
-  }
-
-  if (headerRowIndex === -1) headerRowIndex = 0;
-
-  const rawHeaders = Array.from(rawRows[headerRowIndex] || []).map((h) => String(h ?? '').trim());
+  const rawHeaders = rawRows[headerRowIndex].map((h) => String(h || '').trim());
   const platform = forcedPlatform || detectPlatformFromHeaders(rawHeaders);
 
-  // Map header column indices safely against undefined/hole items, spaces, and exclusions
-  const getColIdx = (keywords: string[], excludeKeywords: string[] = []): number => {
-    return rawHeaders.findIndex((h) => {
-      if (typeof h !== 'string' || !h.trim()) return false;
-      const cleanH = h.replace(/\s+/g, '').toLowerCase();
-
-      // Skip if header matches any exclusion keyword
-      if (excludeKeywords.some((ex) => cleanH.includes(ex.replace(/\s+/g, '').toLowerCase()))) {
-        return false;
-      }
-
-      return keywords.some((kw) => cleanH.includes(kw.replace(/\s+/g, '').toLowerCase()));
-    });
+  // Map header column indices
+  const getColIdx = (keywords: string[]): number => {
+    return rawHeaders.findIndex((h) => keywords.some((kw) => h.includes(kw)));
   };
 
-  const dateIdx = getColIdx(['날짜', '주문일시', '결제일시', '주문일자', '결제일자', '주문일', '결제일', '발송일', '일자']);
-  const orderNoIdx = getColIdx(
-    ['상품주문번호', '주문번호', '주문ID', 'OrderNo', '주문 번호', '구매번호', '결제번호'],
-    ['상품번호', '상품코드']
-  );
-  const productNoIdx = getColIdx(
-    ['상품번호', '상품코드', '옵션ID', '품목코드', '상품 ID'],
-    ['상품명', '주문번호', '상품주문번호', '상품결제금액']
-  );
-  const productIdx = getColIdx(
-    ['상품명', '품목명', '주문상품명', '주문상품', '상품 이름', '품목'],
-    ['상품번호', '상품주문번호', '상품코드', '옵션ID', '상품금액', '상품결제금액', '상품단가', '수량']
-  );
-  const optionIdx = getColIdx(['옵션정보', '선택옵션', '옵션명', '옵션 세부', '옵션'], ['옵션id']);
-  const qtyIdx = getColIdx(['수량', '구매수량', '수량(개)', '구매 수량']);
-  const recipientIdx = getColIdx(['수취인명', '수취인', '수령인', '구매자명', '구매자', '고객명', '받는사람', '받는분']);
-  const priceIdx = getColIdx(
-    ['상품결제금액', '결제금액', '판매가', '판매금액', '주문금액', '상품금액', '총상품구매금액', '공급가', '총결제금액'],
-    ['수수료', '단가']
-  );
-  const unitPriceIdx = getColIdx(['개별단가', '단가', '옵션+판매', '상품단가'], ['원가']);
-  const shippingIdx = getColIdx(
-    ['배송비 합계', '배송비 금액', '배송비금액', '총배송비', '총 배송비', '고객배송비', '배송비결제', '배송비2', '배송비'],
-    ['배송비 형태', '배송비유형', '배송비종류', '배송비구분', '배송비조건', '배송조건', '배송비 속성', '배송비 결제방식', '택배사']
-  );
-  const feeIdx = getColIdx(
-    ['결제수수료', '수수료합계', '수수료', '수수료1', '수수료합', '중개수수료', '네이버페이 수수료'],
-    ['매출연동', '수수료율', '수수료%', '지식']
-  );
-  const kFeeIdx = getColIdx(['매출연동 수수료', '매출연동', '지식쇼핑 수수료', '지식쇼핑', '지식', '쇼핑수수료'], ['수수료율', '수수료%']);
-  const settlementIdx = getColIdx(
-    ['정산예정금액', '정산가', '정산금액', '정산금', '결산예정', '정산 예정 금액', '정산'],
-    ['정산일', '정산주기', '정산상태']
-  );
-  const costIdx = getColIdx(['매입원가', '개당원가', '원가합계', '원가']);
-  const packagingIdx = getColIdx(['포장비', '포장', '포장재비', '포장박스']);
-  const actualShipIdx = getColIdx(['실배송비', '실택배비', '실제배송비', '택배비2'], ['고객배송비', '배송비 형태', '수취인']);
+  const dateIdx = getColIdx(['날짜', '주문일', '일자', '결제일', '정산일']);
+  const orderNoIdx = getColIdx(['주문번호', '상품주문번호', '주문ID', 'OrderNo']);
+  const productNoIdx = getColIdx(['상품번호', '상품코드', '옵션ID']);
+  const productIdx = getColIdx(['상품명', '상품명2', '품목명', '주문상품']);
+  const optionIdx = getColIdx(['옵션', '옵션명', '옵션정보', '선택옵션']);
+  const qtyIdx = getColIdx(['수량', '구매수량', '수']);
+  const recipientIdx = getColIdx(['수취인', '수령인', '구매자', '고객명', '받는사람']);
+  const priceIdx = getColIdx(['판매가', '판매금액', '주문금액', '상품금액', '총상품구매금액', '공급가']);
+  const unitPriceIdx = getColIdx(['단가', '개별단가', '옵션+판매']);
+  const shippingIdx = getColIdx(['배송비', '택배비', '총배송비', '배송비결제', '배송비2']);
+  const feeIdx = getColIdx(['수수료', '수수료1', '수수료합', '중개수수료']);
+  const kFeeIdx = getColIdx(['지식쇼핑', '매출연동']);
+  const settlementIdx = getColIdx(['정산가', '정산금액', '결산예정', '공급가']);
+  const costIdx = getColIdx(['원가', '매입원가', '개당원가']);
 
   const parsedOrders: OrderItem[] = [];
   const activeSettings = settings || {
@@ -208,56 +122,38 @@ export async function parseExcelOrders(
 
   for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
     const row = rawRows[r];
-    if (!row || !Array.isArray(row) || row.length === 0) continue;
-
-    const safeRow = Array.from(row);
+    if (!row || row.length === 0) continue;
 
     // Check if row is mostly empty or summary row
-    const rowText = safeRow.map((c) => String(c ?? '')).join(' ').trim();
+    const rowText = row.join(' ').trim();
     if (!rowText || rowText.includes('합계') || rowText.includes('총계')) continue;
 
-    const getVal = (idx: number) => (idx >= 0 && idx < safeRow.length && safeRow[idx] !== undefined && safeRow[idx] !== null) ? safeRow[idx] : undefined;
-
-    let rawProductName = getVal(productIdx);
-    let productName = rawProductName !== undefined ? String(rawProductName).trim() : '';
-
-    // Fallback: if productName is empty or pure numbers (e.g. 6559017204), find text cell in row
-    if ((!productName || /^\d+$/.test(productName)) && safeRow.length > 0) {
-      for (let c = 0; c < safeRow.length; c++) {
-        if (c === dateIdx || c === orderNoIdx || c === productNoIdx || c === qtyIdx || c === priceIdx || c === recipientIdx) continue;
-        const val = safeRow[c];
-        if (val !== undefined && val !== null) {
-          const strVal = String(val).trim();
-          if (strVal.length > 1 && /[가-힣a-zA-Z]/.test(strVal)) {
-            productName = strVal;
-            break;
-          }
-        }
-      }
-    }
-
+    const productName = productIdx >= 0 && row[productIdx] ? String(row[productIdx]).trim() : '';
     if (!productName) continue;
 
-    const orderDateRaw = getVal(dateIdx) !== undefined ? cleanDateStr(getVal(dateIdx)) : todayStr;
-
-    const rawOrderNo = getVal(orderNoIdx);
-    const orderNumber = (rawOrderNo !== undefined && rawOrderNo !== null && String(rawOrderNo).trim() !== '')
-      ? String(rawOrderNo).trim()
-      : `ORD-${r}`;
-
-    const rawProductNo = getVal(productNoIdx);
-    const productNumber = (rawProductNo !== undefined && rawProductNo !== null) ? String(rawProductNo).trim() : '';
-
-    const optionName = getVal(optionIdx) !== undefined ? String(getVal(optionIdx)).trim() : '기본';
-    const quantity = Math.max(1, Number(getVal(qtyIdx) !== undefined ? String(getVal(qtyIdx)).replace(/[^0-9.-]/g, '') : 1) || 1);
-    const recipient = getVal(recipientIdx) !== undefined ? String(getVal(recipientIdx)).trim() : '고객';
+    let orderDateRaw = forcedDate;
+    if (!orderDateRaw) {
+      const rawDateVal = dateIdx >= 0 && row[dateIdx] ? String(row[dateIdx]).trim() : '';
+      if (rawDateVal) {
+        const cleaned = rawDateVal.replace(/[^0-9]/g, '');
+        if (cleaned.length >= 8) {
+          orderDateRaw = `${cleaned.substring(0, 4)}-${cleaned.substring(4, 6)}-${cleaned.substring(6, 8)}`;
+        } else {
+          orderDateRaw = rawDateVal;
+        }
+      } else {
+        orderDateRaw = todayStr;
+      }
+    }
+    const orderNumber = orderNoIdx >= 0 && row[orderNoIdx] ? String(row[orderNoIdx]).trim() : `ORD-${r}`;
+    const productNumber = productNoIdx >= 0 && row[productNoIdx] ? String(row[productNoIdx]).trim() : '';
+    const optionName = optionIdx >= 0 && row[optionIdx] ? String(row[optionIdx]).trim() : '기본';
+    const quantity = Math.max(1, Number(qtyIdx >= 0 ? row[qtyIdx] : 1) || 1);
+    const recipient = recipientIdx >= 0 && row[recipientIdx] ? String(row[recipientIdx]).trim() : '고객';
 
     // Pricing
-    const pVal = getVal(priceIdx);
-    let rawPrice = pVal !== undefined ? Number(String(pVal).replace(/[^0-9.-]/g, '')) || 0 : 0;
-
-    const upVal = getVal(unitPriceIdx);
-    let rawUnitPrice = upVal !== undefined ? Number(String(upVal).replace(/[^0-9.-]/g, '')) || 0 : 0;
+    let rawPrice = priceIdx >= 0 && row[priceIdx] !== undefined ? Number(String(row[priceIdx]).replace(/[^0-9.-]/g, '')) : 0;
+    let rawUnitPrice = unitPriceIdx >= 0 && row[unitPriceIdx] !== undefined ? Number(String(row[unitPriceIdx]).replace(/[^0-9.-]/g, '')) : 0;
 
     if (rawPrice === 0 && rawUnitPrice > 0) {
       rawPrice = rawUnitPrice * quantity;
@@ -267,35 +163,20 @@ export async function parseExcelOrders(
 
     // Shipping fee
     let buyerShipping = 0;
-    const sVal = getVal(shippingIdx);
-    if (sVal !== undefined && sVal !== null) {
-      const shipStr = String(sVal).trim();
-      if (shipStr === '무료' || shipStr === '0' || shipStr === '무료배송') {
+    if (shippingIdx >= 0 && row[shippingIdx] !== undefined) {
+      const shipStr = String(row[shippingIdx]).trim();
+      if (shipStr.includes('무료') || shipStr === '0') {
         buyerShipping = 0;
       } else {
-        const numVal = Number(shipStr.replace(/[^0-9.-]/g, ''));
-        buyerShipping = isNaN(numVal) ? 0 : numVal;
+        buyerShipping = Number(shipStr.replace(/[^0-9.-]/g, '')) || 0;
       }
     }
 
     // Fees & Settlement if available in raw sheet
-    const fVal = getVal(feeIdx);
-    const rawFee = fVal !== undefined && fVal !== null && String(fVal).trim() !== '' ? Math.abs(Number(String(fVal).replace(/[^0-9.-]/g, '')) || 0) : undefined;
-
-    const kVal = getVal(kFeeIdx);
-    const rawKFee = kVal !== undefined && kVal !== null && String(kVal).trim() !== '' ? Math.abs(Number(String(kVal).replace(/[^0-9.-]/g, '')) || 0) : undefined;
-
-    const setVal = getVal(settlementIdx);
-    const rawSettlement = setVal !== undefined && setVal !== null && String(setVal).trim() !== '' ? Math.abs(Number(String(setVal).replace(/[^0-9.-]/g, '')) || 0) : undefined;
-
-    const cVal = getVal(costIdx);
-    const rawCost = cVal !== undefined && cVal !== null && String(cVal).trim() !== '' ? Math.abs(Number(String(cVal).replace(/[^0-9.-]/g, '')) || 0) : undefined;
-
-    const pkgVal = getVal(packagingIdx);
-    const rawPackaging = pkgVal !== undefined && pkgVal !== null && String(pkgVal).trim() !== '' ? Math.abs(Number(String(pkgVal).replace(/[^0-9.-]/g, '')) || 0) : undefined;
-
-    const shipCostVal = getVal(actualShipIdx);
-    const rawActualShip = shipCostVal !== undefined && shipCostVal !== null && String(shipCostVal).trim() !== '' ? Math.abs(Number(String(shipCostVal).replace(/[^0-9.-]/g, '')) || 0) : undefined;
+    const rawFee = feeIdx >= 0 && row[feeIdx] !== undefined ? Number(String(row[feeIdx]).replace(/[^0-9.-]/g, '')) : undefined;
+    const rawKFee = kFeeIdx >= 0 && row[kFeeIdx] !== undefined ? Number(String(row[kFeeIdx]).replace(/[^0-9.-]/g, '')) : undefined;
+    const rawSettlement = settlementIdx >= 0 && row[settlementIdx] !== undefined ? Number(String(row[settlementIdx]).replace(/[^0-9.-]/g, '')) : undefined;
+    const rawCost = costIdx >= 0 && row[costIdx] !== undefined ? Number(String(row[costIdx]).replace(/[^0-9.-]/g, '')) : undefined;
 
     const orderObj: Partial<OrderItem> = {
       platform,
@@ -313,8 +194,6 @@ export async function parseExcelOrders(
       knowledgeShoppingFee: rawKFee,
       settlementAmount: rawSettlement,
       unitCost: rawCost || 0,
-      packagingCost: rawPackaging,
-      actualShippingCost: rawActualShip,
       isCostMatched: (rawCost || 0) > 0,
     };
 
@@ -447,45 +326,40 @@ export async function parseCostMasterExcel(file: File): Promise<CostItem[]> {
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
   const rawRows: any[][] = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
-  if (!rawRows || rawRows.length === 0) throw new Error('파일에 데이터가 없습니다.');
+  if (rawRows.length === 0) throw new Error('파일에 데이터가 없습니다.');
 
   let headerIdx = 0;
-  for (let i = 0; i < Math.min(10, rawRows.length); i++) {
-    const row = rawRows[i];
-    if (!row || !Array.isArray(row)) continue;
-    const rowStr = Array.from(row).map((c) => String(c ?? '').trim()).join(' ');
+  for (let i = 0; i < Math.min(5, rawRows.length); i++) {
+    const rowStr = rawRows[i].join(' ');
     if (rowStr.includes('상품명') || rowStr.includes('원가')) {
       headerIdx = i;
       break;
     }
   }
 
-  const headers = Array.from(rawRows[headerIdx] || []).map((h) => String(h ?? '').trim());
-  const pIdx = headers.findIndex((h) => typeof h === 'string' && h.includes('상품명'));
-  const oIdx = headers.findIndex((h) => typeof h === 'string' && h.includes('옵션'));
-  const cIdx = headers.findIndex((h) => typeof h === 'string' && (h.includes('원가') || h.includes('단가') || h.includes('매입')));
-  const catIdx = headers.findIndex((h) => typeof h === 'string' && (h.includes('카테고리') || h.includes('분류')));
-  const sIdx = headers.findIndex((h) => typeof h === 'string' && (h.includes('공급처') || h.includes('거래처')));
-  const mIdx = headers.findIndex((h) => typeof h === 'string' && (h.includes('메모') || h.includes('비고')));
+  const headers = rawRows[headerIdx].map((h) => String(h || '').trim());
+  const pIdx = headers.findIndex((h) => h.includes('상품명'));
+  const oIdx = headers.findIndex((h) => h.includes('옵션'));
+  const cIdx = headers.findIndex((h) => h.includes('원가') || h.includes('단가') || h.includes('매입'));
+  const catIdx = headers.findIndex((h) => h.includes('카테고리') || h.includes('분류'));
+  const sIdx = headers.findIndex((h) => h.includes('공급처') || h.includes('거래처'));
+  const mIdx = headers.findIndex((h) => h.includes('메모') || h.includes('비고'));
 
   const items: CostItem[] = [];
   const today = new Date().toISOString().split('T')[0];
 
   for (let r = headerIdx + 1; r < rawRows.length; r++) {
     const row = rawRows[r];
-    if (!row || !Array.isArray(row) || row.length === 0) continue;
+    if (!row || row.length === 0) continue;
 
-    const safeRow = Array.from(row);
-    const getVal = (idx: number) => (idx >= 0 && idx < safeRow.length && safeRow[idx] !== undefined && safeRow[idx] !== null) ? safeRow[idx] : undefined;
-
-    const productName = getVal(pIdx) !== undefined ? String(getVal(pIdx)).trim() : '';
+    const productName = pIdx >= 0 && row[pIdx] ? String(row[pIdx]).trim() : '';
     if (!productName) continue;
 
-    const optionName = getVal(oIdx) !== undefined ? String(getVal(oIdx)).trim() : '기본';
-    const cost = Number(getVal(cIdx) !== undefined ? String(getVal(cIdx)).replace(/[^0-9.-]/g, '') : 0) || 0;
-    const category = getVal(catIdx) !== undefined ? String(getVal(catIdx)).trim() : '';
-    const supplier = getVal(sIdx) !== undefined ? String(getVal(sIdx)).trim() : '';
-    const memo = getVal(mIdx) !== undefined ? String(getVal(mIdx)).trim() : '';
+    const optionName = oIdx >= 0 && row[oIdx] ? String(row[oIdx]).trim() : '기본';
+    const cost = Number(cIdx >= 0 ? String(row[cIdx]).replace(/[^0-9.-]/g, '') : 0) || 0;
+    const category = catIdx >= 0 && row[catIdx] ? String(row[catIdx]).trim() : '';
+    const supplier = sIdx >= 0 && row[sIdx] ? String(row[sIdx]).trim() : '';
+    const memo = mIdx >= 0 && row[mIdx] ? String(row[mIdx]).trim() : '';
 
     items.push({
       id: `cost-${Date.now()}-${r}-${Math.random().toString(36).substr(2, 4)}`,
@@ -501,4 +375,3 @@ export async function parseCostMasterExcel(file: File): Promise<CostItem[]> {
 
   return items;
 }
-
