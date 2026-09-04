@@ -36,7 +36,7 @@ export function detectPlatformFromHeaders(headers: string[]): PlatformType {
   if (joined.includes('11번가')) {
     return 'elevenst';
   }
-  if (joined.includes('g마켓') || joined.includes('지마켓')) {
+  if (joined.includes('g마켓') || joined.includes('지마켓') || joined.includes('esm') || joined.includes('서비스이용료') || joined.includes('판매자쿠폰')) {
     return 'gmarket';
   }
   if (joined.includes('옥션') || joined.includes('auction')) {
@@ -80,8 +80,10 @@ export async function parseExcelOrders(
   const platform = forcedPlatform || detectPlatformFromHeaders(rawHeaders);
 
   // Map header column indices
-  const getColIdx = (keywords: string[]): number => {
-    return rawHeaders.findIndex((h) => keywords.some((kw) => h.includes(kw)));
+  const getColIdx = (keywords: string[], excludeKeywords: string[] = []): number => {
+    return rawHeaders.findIndex(
+      (h) => keywords.some((kw) => h.includes(kw)) && !excludeKeywords.some((ex) => h.includes(ex))
+    );
   };
 
   const dateIdx = getColIdx(['날짜', '주문일', '일자', '결제일', '정산일']);
@@ -90,11 +92,11 @@ export async function parseExcelOrders(
   const productIdx = getColIdx(['상품명', '상품명2', '품목명', '주문상품']);
   const optionIdx = getColIdx(['옵션', '옵션명', '옵션정보', '선택옵션']);
   const qtyIdx = getColIdx(['수량', '구매수량', '수']);
-  const recipientIdx = getColIdx(['수취인', '수령인', '구매자', '고객명', '받는사람']);
+  const recipientIdx = getColIdx(['수취인', '수령인', '수령자', '구매자', '고객명', '받는사람']);
   const priceIdx = getColIdx(['판매가', '판매금액', '주문금액', '상품금액', '총상품구매금액', '공급가']);
   const unitPriceIdx = getColIdx(['단가', '개별단가', '옵션+판매']);
-  const shippingIdx = getColIdx(['배송비', '택배비', '총배송비', '배송비결제', '배송비2']);
-  const feeIdx = getColIdx(['수수료', '수수료1', '수수료합', '중개수수료']);
+  const shippingIdx = getColIdx(['택배비', '총배송비', '배송비결제', '고객배송비', '배송비2', '배송비금액', '배송비'], ['구분', '유형', '조건', '방식', '종류']);
+  const feeIdx = getColIdx(['서비스이용', '수수료', '수수료1', '수수료합', '중개수수료']);
   const kFeeIdx = getColIdx(['지식쇼핑', '매출연동']);
   const settlementIdx = getColIdx(['정산가', '정산금액', '결산예정', '공급가']);
   const costIdx = getColIdx(['원가', '매입원가', '개당원가']);
