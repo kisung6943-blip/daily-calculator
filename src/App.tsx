@@ -30,7 +30,7 @@ export default function App() {
       const savedCosts = localStorage.getItem(STORAGE_COSTS_KEY);
       if (savedCosts) rawCosts = JSON.parse(savedCosts);
     } catch (e) {}
-    return processAllOrders(rawOrders, rawCosts, { ...DEFAULT_SETTINGS, defaultIncomeTaxRate: 10 });
+    return processAllOrders(rawOrders, rawCosts, { ...DEFAULT_SETTINGS, defaultIncomeTaxRate: 2.4 });
   });
 
   const [costItems, setCostItems] = useState<CostItem[]>(() => {
@@ -51,7 +51,7 @@ export default function App() {
         return {
           ...DEFAULT_SETTINGS,
           ...parsed,
-          defaultIncomeTaxRate: 10,
+          defaultIncomeTaxRate: 2.4,
         };
       }
     } catch (e) {
