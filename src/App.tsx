@@ -212,6 +212,16 @@ export default function App() {
     setCurrentTab('dashboard');
   };
 
+  // Clear all saved orders completely
+  const handleClearAllOrders = () => {
+    if (confirm('저장된 모든 주문 내역을 삭제하시겠습니까?\n(원가 관리표의 원가 목록은 그대로 유지됩니다)')) {
+      setOrders([]);
+      localStorage.removeItem(STORAGE_ORDERS_KEY);
+      setSelectedDate('all');
+      setCurrentTab('dashboard');
+    }
+  };
+
   // Reset to Sample Initial Data
   const handleResetSampleData = () => {
     if (confirm('사용자 샘플 데이터(08월 12일, 08월 13일 7개 쇼핑몰 원본)로 복원하시겠습니까?')) {
@@ -251,6 +261,7 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onExportExcel={handleGlobalExport}
         onResetSampleData={handleResetSampleData}
+        onClearAllOrders={handleClearAllOrders}
         unmatchedCostCount={unmatchedCostCount}
         totalOrdersCount={orders.length}
       />

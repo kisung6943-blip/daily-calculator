@@ -23,6 +23,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onExportExcel: () => void;
   onResetSampleData: () => void;
+  onClearAllOrders?: () => void;
   unmatchedCostCount: number;
   totalOrdersCount: number;
 }
@@ -37,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onExportExcel,
   onResetSampleData,
+  onClearAllOrders,
   unmatchedCostCount,
   totalOrdersCount,
 }) => {
@@ -113,14 +115,17 @@ export const Header: React.FC<HeaderProps> = ({
               <Settings className="w-4 h-4" />
             </button>
 
-            <button
-              id="btn-reset-sample"
-              onClick={onResetSampleData}
-              title="샘플 데이터 복원 (사용자 사진 예시 08/12, 08/13)"
-              className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+            {onClearAllOrders && (
+              <button
+                id="btn-clear-orders"
+                onClick={onClearAllOrders}
+                title="주문 내역 전체 비우기 (초기화)"
+                className="inline-flex items-center px-2.5 py-2 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5 mr-1 text-rose-600" />
+                내역 비우기
+              </button>
+            )}
           </div>
         </div>
 

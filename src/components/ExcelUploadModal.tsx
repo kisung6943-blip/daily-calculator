@@ -41,7 +41,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
     detectedPlatform: PlatformType;
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [importMode, setImportMode] = useState<'append' | 'replace_platform' | 'replace_all'>('replace_platform');
+  const [importMode, setImportMode] = useState<'append' | 'replace_platform' | 'replace_all'>('replace_all');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
