@@ -106,8 +106,21 @@ export function recalculateOrder(
 ): OrderItem {
   const platform = order.platform || 'smartstore';
   const quantity = Math.max(1, Number(order.quantity) || 1);
-  const unitPrice = Number(order.unitPrice) || 0;
-  const totalPrice = order.totalPrice !== undefined ? Number(order.totalPrice) : unitPrice * quantity;
+
+  let totalPrice = 0;
+  let unitPrice = 0;
+
+  if (order.totalPrice !== undefined && Number(order.totalPrice) > 0) {
+    totalPrice = Number(order.totalPrice);
+    if (order.unitPrice !== undefined && Number(order.unitPrice) > 0 && Math.abs(Number(order.unitPrice) * quantity - totalPrice) < 2) {
+      unitPrice = Number(order.unitPrice);
+    } else {
+      unitPrice = Math.round(totalPrice / quantity);
+    }
+  } else if (order.unitPrice !== undefined && Number(order.unitPrice) > 0) {
+    unitPrice = Number(order.unitPrice);
+    totalPrice = unitPrice * quantity;
+  }
 
   // Buyer shipping fee: if bundle sub-item, 0 unless specified
   const buyerShippingFee = isBundleSubItem ? 0 : Number(order.buyerShippingFee) || 0;
