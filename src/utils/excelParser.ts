@@ -135,10 +135,7 @@ export async function parseExcelOrders(
     priceIdx = getColIdx(['금액', '가격', '결제', '결액', '액']);
   }
 
-  let unitPriceIdx = getColIdx(['옵션+판매', '개별단가', '단가', '개당', '옵션판매가', '판매가', '개별판매가', '결액', '결제액']);
-  if (unitPriceIdx < 0) {
-    unitPriceIdx = priceIdx;
-  }
+  let unitPriceIdx = getColIdx(['옵션+판매', '개별단가', '단가', '개당', '옵션판매가', '개별판매가', '1개당가격']);
 
   const shippingIdx = getColIdx(
     ['택배비', '총배송비', '배송비결제', '고객배송비', '배송비2', '배송비금액', '배송비', '배송비부담'],
@@ -221,12 +218,14 @@ export async function parseExcelOrders(
     let rawPrice = priceIdx >= 0 && row[priceIdx] !== undefined ? Number(String(row[priceIdx]).replace(/[^0-9.-]/g, '')) : 0;
     let rawUnitPrice = unitPriceIdx >= 0 && row[unitPriceIdx] !== undefined ? Number(String(row[unitPriceIdx]).replace(/[^0-9.-]/g, '')) : 0;
 
-    // Handle unit price vs total price mismatch
-    if (rawPrice === rawUnitPrice && rawUnitPrice > 0 && quantity > 1) {
-      rawPrice = rawUnitPrice * quantity;
+    // Handle unit price vs total price
+    if (rawPrice > 0 && rawUnitPrice === 0) {
+      // rawPrice is the total row payment amount (e.g. 4,200 for 3 items)
+      rawUnitPrice = Math.round(rawPrice / quantity);
     } else if (rawPrice === 0 && rawUnitPrice > 0) {
       rawPrice = rawUnitPrice * quantity;
-    } else if (rawPrice > 0 && rawUnitPrice === 0) {
+    } else if (rawPrice > 0 && rawUnitPrice > 0 && rawPrice === rawUnitPrice) {
+      // Both columns pointed to same column or single price given -> rawPrice is total payment
       rawUnitPrice = Math.round(rawPrice / quantity);
     }
 
