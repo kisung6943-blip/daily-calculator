@@ -248,6 +248,8 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
           <input
             id="input-search-table"
             type="text"
+            lang="ko"
+            style={{ imeMode: 'active' }}
             placeholder="상품명, 옵션명, 수취인, 주문번호 검색..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

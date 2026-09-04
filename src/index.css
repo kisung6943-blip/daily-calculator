@@ -1,1 +1,8 @@
 @import "tailwindcss";
+
+/* Force Korean IME input mode (한글 우선) for all text inputs */
+input[type="text"],
+input[type="search"],
+textarea {
+  ime-mode: active !important;
+}
