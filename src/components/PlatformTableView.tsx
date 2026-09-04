@@ -377,14 +377,16 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
           <table className="min-w-full text-xs text-left border-collapse">
             <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10 border-b border-slate-300 shadow-xs">
               <tr className="divide-x divide-slate-300">
-                <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100/70 text-amber-900">날짜</th>
-                <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100/70 text-amber-900">주문번호</th>
+                <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100 text-amber-900 sticky left-0 top-0 z-30 shadow-2xs">날짜</th>
+                <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100 text-amber-900 sticky left-[75px] top-0 z-30 shadow-2xs">주문번호</th>
                 {platform === 'smartstore' && (
-                  <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100/70 text-amber-900">상품번호</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100 text-amber-900 sticky left-[155px] top-0 z-30 shadow-2xs">상품번호</th>
                 )}
                 <th 
                   onClick={() => handleSortToggle('productName')}
-                  className="py-2.5 px-4 whitespace-nowrap min-w-[240px] bg-amber-200/80 text-amber-950 cursor-pointer hover:bg-amber-300 transition-colors"
+                  className={`py-2.5 px-4 whitespace-nowrap min-w-[240px] max-w-[320px] bg-amber-200 text-amber-950 sticky top-0 z-30 ${
+                    platform === 'smartstore' ? 'left-[245px]' : 'left-[155px]'
+                  } border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)] cursor-pointer hover:bg-amber-300 transition-colors`}
                   title="클릭하여 상품명 정렬"
                 >
                   <div className="flex items-center justify-between">
@@ -491,18 +493,17 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
               ) : (
                 sortedOrders.map((ord, idx) => {
                   const isBundleSub = ord.isBundleShipping && ord.actualShippingCost === 0;
+                  const cellBg = !ord.isCostMatched ? 'bg-rose-50' : idx % 2 === 1 ? 'bg-slate-50' : 'bg-white';
 
                   return (
                     <tr
                       key={ord.id}
-                      className={`divide-x divide-slate-200 hover:bg-amber-50/40 transition-colors ${
-                        idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'
-                      } ${!ord.isCostMatched ? 'bg-rose-50/40' : ''}`}
+                      className={`divide-x divide-slate-200 hover:bg-amber-50/40 transition-colors ${cellBg}`}
                     >
                       {/* 1. Date */}
                       <td
                         onClick={() => handleStartEdit(ord, 'orderDate', ord.orderDate)}
-                        className="py-2 px-3 whitespace-nowrap font-medium text-slate-900 hover:bg-yellow-50 cursor-pointer"
+                        className={`py-2 px-3 whitespace-nowrap font-medium text-slate-900 sticky left-0 z-20 hover:bg-yellow-50 cursor-pointer ${cellBg}`}
                         title="클릭하여 날짜 수정"
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'orderDate' ? (
@@ -521,13 +522,13 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                       </td>
 
                       {/* 2. Order Number */}
-                      <td className="py-2 px-3 whitespace-nowrap font-mono text-[11px] text-slate-600">
+                      <td className={`py-2 px-3 whitespace-nowrap font-mono text-[11px] text-slate-600 sticky left-[75px] z-20 ${cellBg}`}>
                         {ord.orderNumber}
                       </td>
 
                       {/* 3. Product Number (for smartstore) */}
                       {platform === 'smartstore' && (
-                        <td className="py-2 px-3 whitespace-nowrap font-mono text-[11px] text-slate-500">
+                        <td className={`py-2 px-3 whitespace-nowrap font-mono text-[11px] text-slate-500 sticky left-[155px] z-20 ${cellBg}`}>
                           {ord.productNumber || '-'}
                         </td>
                       )}
@@ -535,7 +536,9 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                       {/* 4. Product Name */}
                       <td
                         onClick={() => handleStartEdit(ord, 'productName', ord.productName)}
-                        className="py-2 px-4 text-slate-900 min-w-[240px] max-w-[320px] hover:bg-yellow-50 cursor-pointer"
+                        className={`py-2 px-4 text-slate-900 min-w-[240px] max-w-[320px] sticky ${
+                          platform === 'smartstore' ? 'left-[245px]' : 'left-[155px]'
+                        } z-20 border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)] hover:bg-yellow-50 cursor-pointer ${cellBg}`}
                         title={ord.productName}
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'productName' ? (
@@ -560,12 +563,12 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             </div>
                             {/* Highlighted Net Profit Badge directly under Product Name */}
                             <div className="mt-1 flex items-center space-x-1">
-                              <span className={`inline-flex items-center text-[10px] font-extrabold px-1.5 py-0.3 rounded border shadow-2xs ${
+                              <span className={`inline-flex items-center text-[10.5px] font-black px-2 py-0.5 rounded-full border shadow-2xs ${
                                 ord.netProfit > 0
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                  ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
                                   : ord.netProfit < 0
-                                  ? 'bg-rose-50 text-rose-800 border-rose-300'
-                                  : 'bg-slate-100 text-slate-600 border-slate-300'
+                                  ? 'bg-rose-100 text-rose-900 border-rose-400'
+                                  : 'bg-slate-100 text-slate-700 border-slate-300'
                               }`}>
                                 💰 순수익 {formatKRW(ord.netProfit, true)} ({ord.marginRate}%)
                               </span>
