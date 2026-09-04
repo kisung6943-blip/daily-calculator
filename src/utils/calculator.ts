@@ -132,9 +132,13 @@ export function recalculateOrder(
   } else if (platform === 'smartstore') {
     // 스마트스토어: 결제수수료 + 지식쇼핑수수료
     if (order.feeAmount !== undefined && order.knowledgeShoppingFee !== undefined) {
-      feeAmount = Number(order.feeAmount);
-      knowledgeShoppingFee = Number(order.knowledgeShoppingFee);
-      settlementAmount = totalPrice - (feeAmount + knowledgeShoppingFee);
+      feeAmount = Math.abs(Number(order.feeAmount));
+      knowledgeShoppingFee = Math.abs(Number(order.knowledgeShoppingFee));
+      if (order.settlementAmount && order.settlementAmount > 0) {
+        settlementAmount = Number(order.settlementAmount);
+      } else {
+        settlementAmount = totalPrice - (feeAmount + knowledgeShoppingFee);
+      }
     } else {
       const baseFee = Math.round(totalPrice * (settings.smartstoreBaseFee / 100));
       const kFee = Math.round(totalPrice * (settings.smartstoreKnowledgeFee / 100));
@@ -145,7 +149,7 @@ export function recalculateOrder(
   } else {
     // 쿠팡, 자사몰, 11번가, G마켓, 옥션
     if (order.feeAmount !== undefined && order.settlementAmount !== undefined && order.settlementAmount > 0) {
-      feeAmount = Number(order.feeAmount);
+      feeAmount = Math.abs(Number(order.feeAmount));
       settlementAmount = Number(order.settlementAmount);
     } else {
       feeAmount = Math.round(totalPrice * (feeRate / 100) * 10) / 10;

@@ -548,7 +548,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             className="w-16 text-xs p-1 border rounded bg-white text-right"
                           />
                         ) : (
-                          `-${formatKRW(ord.feeAmount)}`
+                          `-${formatKRW(Math.abs(ord.feeAmount))}`
                         )}
                       </td>
 
@@ -569,7 +569,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                               className="w-16 text-xs p-1 border rounded bg-white text-right"
                             />
                           ) : (
-                            `-${formatKRW(ord.knowledgeShoppingFee || 0)}`
+                            `-${formatKRW(Math.abs(ord.knowledgeShoppingFee || 0))}`
                           )}
                         </td>
                       )}

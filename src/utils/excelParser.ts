@@ -175,8 +175,8 @@ export async function parseExcelOrders(
     }
 
     // Fees & Settlement if available in raw sheet
-    const rawFee = feeIdx >= 0 && row[feeIdx] !== undefined ? Number(String(row[feeIdx]).replace(/[^0-9.-]/g, '')) : undefined;
-    const rawKFee = kFeeIdx >= 0 && row[kFeeIdx] !== undefined ? Number(String(row[kFeeIdx]).replace(/[^0-9.-]/g, '')) : undefined;
+    const rawFee = feeIdx >= 0 && row[feeIdx] !== undefined ? Math.abs(Number(String(row[feeIdx]).replace(/[^0-9.-]/g, ''))) : undefined;
+    const rawKFee = kFeeIdx >= 0 && row[kFeeIdx] !== undefined ? Math.abs(Number(String(row[kFeeIdx]).replace(/[^0-9.-]/g, ''))) : undefined;
     const rawSettlement = settlementIdx >= 0 && row[settlementIdx] !== undefined ? Number(String(row[settlementIdx]).replace(/[^0-9.-]/g, '')) : undefined;
     const rawCost = costIdx >= 0 && row[costIdx] !== undefined ? Number(String(row[costIdx]).replace(/[^0-9.-]/g, '')) : undefined;
 
