@@ -160,10 +160,13 @@ export function recalculateOrder(
       settlementAmount = totalPrice - (baseFee + kFee);
     }
   } else {
-    // 쿠팡, 자사몰, 11번가, G마켓, 옥션
-    if (order.feeAmount !== undefined && order.settlementAmount !== undefined && order.settlementAmount > 0) {
-      feeAmount = Math.abs(Number(order.feeAmount));
+    // 오늘의집, 쿠팡, 자사몰, 11번가, G마켓, 옥션
+    if (order.settlementAmount !== undefined && Number(order.settlementAmount) > 0) {
       settlementAmount = Number(order.settlementAmount);
+      feeAmount = order.feeAmount !== undefined ? Math.abs(Number(order.feeAmount)) : Math.max(0, totalPrice - settlementAmount);
+    } else if (order.feeAmount !== undefined && Number(order.feeAmount) > 0) {
+      feeAmount = Math.abs(Number(order.feeAmount));
+      settlementAmount = totalPrice - feeAmount;
     } else {
       feeAmount = Math.round(totalPrice * (feeRate / 100));
       settlementAmount = Math.round(totalPrice - feeAmount);

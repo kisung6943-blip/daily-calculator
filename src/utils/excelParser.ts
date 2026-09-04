@@ -145,7 +145,7 @@ export async function parseExcelOrders(
     ['주문관리수료', '주문관리수수료', '결제수수료', '네이버수수료', '판매수수료', '서비스이용료', '서비스이용', '수수료', '수수료1', '수수료합', '중개수수료', '카테고리수수료', '수수료율']
   );
   const kFeeIdx = getColIdx(['지식쇼핑', '매출연동', '매출연동수수료']);
-  const settlementIdx = getColIdx(['정산가', '정산금액', '결산예정', '정산예정금액', '정산예정']);
+  const settlementIdx = getColIdx(['정산가', '정산금액', '결산예정', '정산예정금액', '정산예정', '공급가', '공급가액', '공급금액']);
   const costIdx = getColIdx(['원가', '매입원가', '개당원가']);
 
   const parsedOrders: OrderItem[] = [];
