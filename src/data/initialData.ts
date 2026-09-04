@@ -87,7 +87,7 @@ export const DEFAULT_SETTINGS: SettlementSettings = {
   defaultIncomeTaxRate: 2.4, // 2.4% (사용자 엑셀 종합소득세 수식 기준: 109/4531 = 2.4%)
   vatCalculationMethod: 'simple10', // 10% 일괄 (또는 standard)
   autoBundleShipping: true,
-  bundleOnlyFirstPackageCost: false, // 포장비는 품목별 혹은 1회
+  bundleOnlyFirstPackageCost: true, // 동일인 합배송 시 포장비 1회만 정산
   coupangDefaultFee: 13.0,
   coupangRiceFee: 6.0,
   homepageFee: 3.85,

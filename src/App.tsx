@@ -52,6 +52,7 @@ export default function App() {
           ...DEFAULT_SETTINGS,
           ...parsed,
           defaultIncomeTaxRate: 2.4,
+          bundleOnlyFirstPackageCost: true,
         };
       }
     } catch (e) {
