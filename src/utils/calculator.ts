@@ -14,7 +14,20 @@ export function normalizeText(str: string): string {
 }
 
 /**
- * Find matching cost item based on product name and option name
+ * Helper to check if two option names are effectively identical
+ */
+export function isSameOption(opt1: string = '', opt2: string = ''): boolean {
+  const norm1 = normalizeText(opt1);
+  const norm2 = normalizeText(opt2);
+  const isDefault1 = !norm1 || norm1 === '기본' || norm1 === '단품' || norm1 === '없음' || norm1 === '-';
+  const isDefault2 = !norm2 || norm2 === '기본' || norm2 === '단품' || norm2 === '없음' || norm2 === '-';
+
+  if (isDefault1 && isDefault2) return true;
+  return norm1 === norm2;
+}
+
+/**
+ * Find matching cost item based strictly on matching product name and option name
  */
 export function findMatchingCost(
   productName: string,
@@ -25,34 +38,15 @@ export function findMatchingCost(
 
   const normProduct = normalizeText(productName);
   const rawNormProduct = productName.toLowerCase().replace(/[^a-zA-Z0-9가-힣]/g, '');
-  const normOption = normalizeText(optionName);
 
-  // 1. Exact match (Product + Option)
-  let found = costItems.find((item) => {
+  // Strict match ONLY: BOTH product name AND option name must match!
+  const found = costItems.find((item) => {
     const itemP = normalizeText(item.productName);
-    const itemO = normalizeText(item.optionName);
-    return (itemP === normProduct || itemP === rawNormProduct) && (itemO === normOption || (!normOption && !itemO));
-  });
+    const itemRawP = item.productName.toLowerCase().replace(/[^a-zA-Z0-9가-힣]/g, '');
+    const isProdMatch = (itemP === normProduct || itemRawP === rawNormProduct);
+    if (!isProdMatch) return false;
 
-  if (found) {
-    return { cost: found.cost, isMatched: true, matchedItem: found };
-  }
-
-  // 2. Exact product name match (ignoring option if option is default/empty)
-  found = costItems.find((item) => {
-    const itemP = normalizeText(item.productName);
-    return itemP === normProduct || itemP === rawNormProduct;
-  });
-
-  if (found) {
-    return { cost: found.cost, isMatched: true, matchedItem: found };
-  }
-
-  // 3. Substring matching: product name contains cost product name or vice versa
-  found = costItems.find((item) => {
-    const itemP = normalizeText(item.productName);
-    if (!itemP || itemP.length < 2) return false;
-    return normProduct.includes(itemP) || itemP.includes(normProduct);
+    return isSameOption(item.optionName, optionName);
   });
 
   if (found) {

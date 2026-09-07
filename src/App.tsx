@@ -8,7 +8,7 @@ import { QuickCostModal } from './components/QuickCostModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DEFAULT_SETTINGS, INITIAL_COST_ITEMS, INITIAL_ORDERS, PLATFORMS } from './data/initialData';
 import { CostItem, OrderItem, PlatformType, SettlementSettings } from './types';
-import { normalizeText, processAllOrders, recalculateOrder } from './utils/calculator';
+import { isSameOption, normalizeText, processAllOrders, recalculateOrder } from './utils/calculator';
 import { exportOrdersToExcel } from './utils/excelParser';
 
 const STORAGE_ORDERS_KEY = 'seller_settlement_orders_v1';
@@ -117,15 +117,13 @@ export default function App() {
 
   // Order CRUD Handlers
   const handleUpdateOrder = (updated: OrderItem) => {
-    // 1. If unitCost was updated/entered, automatically save to Master Cost DB so it's NEVER lost
     let currentCosts = costItems;
+    const targetNormP = normalizeText(updated.productName);
+
+    // 1. If unitCost was updated/entered, save to Master Cost DB strictly by (productName + optionName)
     if (updated.unitCost && updated.unitCost > 0 && updated.productName) {
-      const normP = normalizeText(updated.productName);
-      const normO = normalizeText(updated.optionName);
       const existingIdx = costItems.findIndex((c) => {
-        const itemP = normalizeText(c.productName);
-        const itemO = normalizeText(c.optionName);
-        return (itemP === normP || itemP === updated.productName.toLowerCase()) && (itemO === normO || (!normO && !itemO));
+        return normalizeText(c.productName) === targetNormP && isSameOption(c.optionName, updated.optionName);
       });
 
       if (existingIdx >= 0) {
@@ -149,7 +147,24 @@ export default function App() {
       setCostItems(currentCosts);
     }
 
-    const updatedList = orders.map((o) => (o.id === updated.id ? updated : o));
+    // 2. Propagate updated unitCost ONLY to orders where BOTH productName AND optionName are identical
+    const updatedList = orders.map((o) => {
+      if (o.id === updated.id) return updated;
+      if (
+        updated.unitCost !== undefined &&
+        updated.unitCost > 0 &&
+        normalizeText(o.productName) === targetNormP &&
+        isSameOption(o.optionName, updated.optionName)
+      ) {
+        return {
+          ...o,
+          unitCost: updated.unitCost,
+          isCostMatched: true,
+        };
+      }
+      return o;
+    });
+
     setOrders(processAllOrders(updatedList, currentCosts, settings));
   };
 
@@ -210,21 +225,42 @@ export default function App() {
     costItemData?: Partial<CostItem>
   ) => {
     let currentCosts = [...costItems];
-    if (saveToMaster && costItemData) {
-      const newItem: CostItem = {
-        id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-        productName: costItemData.productName || '',
-        optionName: costItemData.optionName || '기본',
-        cost,
-        category: costItemData.category || '주방용품/부품',
-        updatedAt: new Date().toISOString().split('T')[0],
-      };
-      currentCosts = [newItem, ...costItems];
+    const targetOrder = orders.find((o) => o.id === orderId);
+    const targetP = costItemData?.productName || targetOrder?.productName || '';
+    const targetO = costItemData?.optionName || targetOrder?.optionName || '기본';
+    const targetNormP = normalizeText(targetP);
+
+    if (saveToMaster && targetP) {
+      const existingIdx = currentCosts.findIndex(
+        (c) => normalizeText(c.productName) === targetNormP && isSameOption(c.optionName, targetO)
+      );
+
+      if (existingIdx >= 0) {
+        currentCosts[existingIdx] = {
+          ...currentCosts[existingIdx],
+          cost,
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+      } else {
+        const newItem: CostItem = {
+          id: `cost-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          productName: targetP,
+          optionName: targetO,
+          cost,
+          category: costItemData?.category || '주방용품/부품',
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+        currentCosts = [newItem, ...currentCosts];
+      }
       setCostItems(currentCosts);
     }
 
+    // Propagate cost ONLY to orders with identical productName AND optionName
     const updatedOrders = orders.map((o) => {
-      if (o.id === orderId) {
+      if (
+        o.id === orderId ||
+        (targetP && normalizeText(o.productName) === targetNormP && isSameOption(o.optionName, targetO))
+      ) {
         return recalculateOrder(
           {
             ...o,
