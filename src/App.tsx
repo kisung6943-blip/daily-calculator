@@ -48,10 +48,11 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_SETTINGS_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        const rate = Number(parsed.defaultIncomeTaxRate);
         return {
           ...DEFAULT_SETTINGS,
           ...parsed,
-          defaultIncomeTaxRate: parsed.defaultIncomeTaxRate === 2.4 ? 10 : (parsed.defaultIncomeTaxRate ?? 10),
+          defaultIncomeTaxRate: isNaN(rate) || rate === 2.4 || rate === 24 ? 10 : rate,
           bundleOnlyFirstPackageCost: true,
         };
       }
@@ -73,7 +74,7 @@ export default function App() {
   // Force recalculation of all orders with 10% tax rate on mount/settings change
   useEffect(() => {
     setOrders((prev) => processAllOrders(prev, costItems, settings));
-  }, [settings.defaultIncomeTaxRate]);
+  }, [settings, costItems]);
 
   // Sync to localStorage
   useEffect(() => {
