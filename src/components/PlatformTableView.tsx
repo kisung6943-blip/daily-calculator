@@ -386,7 +386,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                 )}
                 <th 
                   onClick={() => handleSortToggle('productName')}
-                  className={`py-2.5 px-4 whitespace-nowrap min-w-[240px] max-w-[320px] bg-amber-200 text-amber-950 sticky top-0 z-30 ${
+                  className={`py-2.5 px-4 min-w-[320px] max-w-[560px] bg-amber-200 text-amber-950 sticky top-0 z-30 ${
                     platform === 'smartstore' ? 'left-[245px]' : 'left-[155px]'
                   } border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)] cursor-pointer hover:bg-amber-300 transition-colors`}
                   title="클릭하여 상품명 정렬"
@@ -538,7 +538,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                       {/* 4. Product Name */}
                       <td
                         onClick={() => handleStartEdit(ord, 'productName', ord.productName)}
-                        className={`py-2 px-4 text-slate-900 min-w-[240px] max-w-[320px] sticky ${
+                        className={`py-2 px-4 text-slate-900 min-w-[320px] max-w-[560px] sticky ${
                           platform === 'smartstore' ? 'left-[245px]' : 'left-[155px]'
                         } z-20 border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)] hover:bg-yellow-50 cursor-pointer ${cellBg}`}
                         title={ord.productName}
@@ -555,8 +555,8 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                           />
                         ) : (
                           <div>
-                            <div className="flex items-center space-x-1.5">
-                              <span className="font-bold text-slate-900 truncate">{ord.productName}</span>
+                            <div className="flex items-center space-x-1.5 flex-wrap">
+                              <span className="font-bold text-slate-900 break-words leading-snug">{ord.productName}</span>
                               {platform === 'coupang' && ord.feeRate === 6 && (
                                 <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0">
                                   쌀 6%
@@ -582,7 +582,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                       {/* 5. Option Name */}
                       <td
                         onClick={() => handleStartEdit(ord, 'optionName', ord.optionName)}
-                        className="py-2 px-3 text-slate-600 max-w-[180px] truncate hover:bg-yellow-50 cursor-pointer"
+                        className="py-2 px-3 text-slate-600 min-w-[140px] max-w-[280px] break-words hover:bg-yellow-50 cursor-pointer"
                         title={ord.optionName}
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'optionName' ? (
