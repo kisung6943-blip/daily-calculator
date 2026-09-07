@@ -30,7 +30,7 @@ export default function App() {
       const savedCosts = localStorage.getItem(STORAGE_COSTS_KEY);
       if (savedCosts) rawCosts = JSON.parse(savedCosts);
     } catch (e) {}
-    return processAllOrders(rawOrders, rawCosts, { ...DEFAULT_SETTINGS, defaultIncomeTaxRate: 2.4 });
+    return processAllOrders(rawOrders, rawCosts, { ...DEFAULT_SETTINGS, defaultIncomeTaxRate: 10 });
   });
 
   const [costItems, setCostItems] = useState<CostItem[]>(() => {
@@ -51,14 +51,14 @@ export default function App() {
         return {
           ...DEFAULT_SETTINGS,
           ...parsed,
-          defaultIncomeTaxRate: 2.4,
+          defaultIncomeTaxRate: parsed.defaultIncomeTaxRate === 2.4 ? 10 : (parsed.defaultIncomeTaxRate ?? 10),
           bundleOnlyFirstPackageCost: true,
         };
       }
     } catch (e) {
       console.error(e);
     }
-    return DEFAULT_SETTINGS;
+    return { ...DEFAULT_SETTINGS, defaultIncomeTaxRate: 10 };
   });
 
   // 2. Navigation & Filter State
