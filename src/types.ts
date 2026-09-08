@@ -47,6 +47,7 @@ export interface OrderItem {
   unitPrice: number; // 판매단가
   totalPrice: number; // 판매금액 (unitPrice * quantity or 엑셀상 판매금액)
   buyerShippingFee: number; // 고객지불 배송비
+  rawBuyerShippingFee?: number; // 원본 고객 지불 배송비 (엑셀 업로드 시 원래 배송비 단가)
   isShippingFree?: boolean; // 무료배송 여부
 
   // Channel Fees & Settlement

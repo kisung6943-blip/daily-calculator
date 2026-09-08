@@ -258,6 +258,7 @@ export async function parseExcelOrders(
       unitPrice: rawUnitPrice || rawPrice,
       totalPrice: rawPrice || rawUnitPrice * quantity,
       buyerShippingFee: buyerShipping,
+      rawBuyerShippingFee: buyerShipping,
       feeAmount: rawFee,
       knowledgeShoppingFee: rawKFee,
       settlementAmount: rawSettlement,

@@ -230,6 +230,7 @@ export function recalculateOrder(
     unitPrice,
     totalPrice,
     buyerShippingFee,
+    rawBuyerShippingFee: order.rawBuyerShippingFee !== undefined ? Number(order.rawBuyerShippingFee) : buyerShippingFee,
     isShippingFree,
     feeRate,
     feeAmount,
@@ -304,17 +305,32 @@ export function processAllOrders(
     const isMulti = groupItems.length > 1 && Boolean(groupItems[0].recipient.trim());
     const bundleGroupId = isMulti ? `BUNDLE-${key.replace(/[^a-zA-Z0-9가-힣]/g, '')}` : undefined;
 
-    // 1. Calculate single customer shipping fee paid for the group (customers pay shipping fee ONCE per bundle order)
-    const singleGroupBuyerShipping = Math.max(...groupItems.map((item) => Number(item.buyerShippingFee) || 0));
+    // Normalize rawBuyerShippingFee for items (fixing any legacy stored inflated fees)
+    groupItems.forEach((item) => {
+      if (item.rawBuyerShippingFee === undefined) {
+        if (isMulti && item.buyerShippingFee > 0 && groupItems.length > 1) {
+          // Legacy item had total sum (e.g. 5000 for 2 items, 10000 for 4 items)
+          const estimatedRaw = Math.round(item.buyerShippingFee / groupItems.length);
+          item.rawBuyerShippingFee = estimatedRaw > 0 ? estimatedRaw : 2500;
+        } else {
+          item.rawBuyerShippingFee = item.buyerShippingFee || 0;
+        }
+      }
+    });
 
-    // 2. Pick representative item: the item with HIGHEST sale price (totalPrice or settlementAmount)
+    // Single customer shipping fee paid for the group (customers pay shipping fee ONCE per bundle order, e.g. 2,500 KRW)
+    const singleGroupBuyerShipping = isMulti
+      ? Math.max(...groupItems.map((item) => Number(item.rawBuyerShippingFee) || 0))
+      : 0;
+
+    // Pick representative item: the item with HIGHEST sale price (totalPrice or settlementAmount)
     let repIndex = 0;
     if (isMulti) {
       let maxSales = -1;
       let maxFee = -1;
       groupItems.forEach((item, idx) => {
         const sales = Number(item.totalPrice) || Number(item.settlementAmount) || 0;
-        const fee = Number(item.buyerShippingFee) || 0;
+        const fee = Number(item.rawBuyerShippingFee ?? item.buyerShippingFee) || 0;
         if (sales > maxSales || (sales === maxSales && fee > maxFee)) {
           maxSales = sales;
           maxFee = fee;
@@ -328,6 +344,7 @@ export function processAllOrders(
       const updated = recalculateOrder(
         {
           ...item,
+          rawBuyerShippingFee: item.rawBuyerShippingFee,
           buyerShippingFee: isSubItem ? 0 : (isMulti ? singleGroupBuyerShipping : item.buyerShippingFee),
           isBundleShipping: isMulti,
           bundleGroupId,
