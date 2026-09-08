@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   AlertTriangle, 
   ArrowUpDown,
+  Calendar,
   Check, 
   ChevronDown, 
   Download, 
@@ -98,6 +99,35 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
       avgMargin: p.totalRevenue > 0 ? Math.round((p.totalNetProfit / p.totalRevenue) * 100) : 0,
     })).sort((a, b) => b.totalNetProfit - a.totalNetProfit);
   }, [dateFiltered]);
+
+  // Daily Breakdown for this specific platform
+  const dailyPlatformSummaries = useMemo(() => {
+    const dates = Array.from(new Set(platformOrders.map((o) => o.orderDate))).sort().reverse();
+    return dates.map((date) => {
+      const dOrders = platformOrders.filter((o) => o.orderDate === date);
+      const dSales = dOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
+      const dSettlement = dOrders.reduce((sum, o) => sum + o.settlementAmount, 0);
+      const dCost = dOrders.reduce((sum, o) => sum + o.totalCost, 0);
+      const dFees = dOrders.reduce((sum, o) => sum + o.feeAmount + (o.knowledgeShoppingFee || 0), 0);
+      const dPack = dOrders.reduce((sum, o) => sum + o.packagingCost, 0);
+      const dActualShip = dOrders.reduce((sum, o) => sum + o.actualShippingCost, 0);
+      const dNetProfit = dOrders.reduce((sum, o) => sum + o.netProfit, 0);
+      const dMargin = dSales > 0 ? Math.round((dNetProfit / dSales) * 100) : 0;
+
+      return {
+        date,
+        orderCount: dOrders.length,
+        sales: dSales,
+        settlement: dSettlement,
+        cost: dCost,
+        fees: dFees,
+        packagingTotal: dPack,
+        actualShippingTotal: dActualShip,
+        netProfit: dNetProfit,
+        marginRate: dMargin,
+      };
+    });
+  }, [platformOrders]);
 
   const handleSortToggle = (field: 'netProfit' | 'productName' | 'marginRate' | 'totalPrice') => {
     if (sortField === field) {
@@ -347,6 +377,90 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Daily Historic Breakdown Table for this specific Platform */}
+      {dailyPlatformSummaries.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Calendar className="w-4 h-4 text-indigo-600" />
+              <h3 className="text-xs font-bold text-slate-900">
+                📅 [{platformConfig.shortName}] 일자별(일별) 매출 및 정산 집계표
+              </h3>
+              <span className="text-[11px] text-slate-500 font-normal">
+                (총 {dailyPlatformSummaries.length}개 일자 데이터)
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-500">
+              * 해당 사이트의 일별 매출 및 정산액을 한눈에 확인할 수 있습니다
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs text-left">
+              <thead className="bg-slate-100/80 text-slate-700 font-semibold border-b border-slate-200">
+                <tr>
+                  <th className="py-2.5 px-4">정산 일자</th>
+                  <th className="py-2.5 px-3 text-center">주문수</th>
+                  <th className="py-2.5 px-3 text-right">일 총매출액</th>
+                  <th className="py-2.5 px-3 text-right">정산예정액</th>
+                  <th className="py-2.5 px-3 text-right">총 매입원가</th>
+                  <th className="py-2.5 px-3 text-right">플랫폼 수수료</th>
+                  <th className="py-2.5 px-3 text-right">포장/실배송비</th>
+                  <th className="py-2.5 px-4 text-right font-bold text-indigo-700">최종 순수익</th>
+                  <th className="py-2.5 px-3 text-center font-bold">마진율</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700">
+                {dailyPlatformSummaries.map((day) => (
+                  <tr key={day.date} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-2.5 px-4 font-bold text-slate-900 flex items-center">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2" />
+                      {day.date}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-medium">{day.orderCount}건</td>
+                    <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatKRW(day.sales, true)}</td>
+                    <td className="py-2.5 px-3 text-right font-semibold text-emerald-700">{formatKRW(day.settlement, true)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-600">{formatKRW(day.cost, true)}</td>
+                    <td className="py-2.5 px-3 text-right text-rose-600">-{formatKRW(day.fees, true)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-600">{formatKRW(day.packagingTotal + day.actualShippingTotal, true)}</td>
+                    <td className="py-2.5 px-4 text-right font-extrabold text-indigo-700 text-sm bg-indigo-50/30">
+                      {formatKRW(day.netProfit, true)}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${
+                        day.marginRate >= 30 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {day.marginRate}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {/* Summary Footer */}
+              <tfoot className="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900">
+                <tr>
+                  <td className="py-2.5 px-4">[{platformConfig.shortName}] 기간 합계</td>
+                  <td className="py-2.5 px-3 text-center">{platformOrders.length}건</td>
+                  <td className="py-2.5 px-3 text-right text-slate-900">{formatKRW(platformOrders.reduce((s, o) => s + o.totalPrice + o.buyerShippingFee, 0), true)}</td>
+                  <td className="py-2.5 px-3 text-right text-emerald-800">{formatKRW(platformOrders.reduce((s, o) => s + o.settlementAmount, 0), true)}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(platformOrders.reduce((s, o) => s + o.totalCost, 0), true)}</td>
+                  <td className="py-2.5 px-3 text-right text-rose-700">-{formatKRW(platformOrders.reduce((s, o) => s + o.feeAmount + (o.knowledgeShoppingFee || 0), 0), true)}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(platformOrders.reduce((s, o) => s + o.packagingCost + o.actualShippingCost, 0), true)}</td>
+                  <td className="py-2.5 px-4 text-right text-indigo-900 text-sm bg-indigo-100/50">
+                    {formatKRW(platformOrders.reduce((s, o) => s + o.netProfit, 0), true)}
+                  </td>
+                  <td className="py-2.5 px-3 text-center text-indigo-900">
+                    {platformOrders.reduce((s, o) => s + o.totalPrice + o.buyerShippingFee, 0) > 0
+                      ? Math.round((platformOrders.reduce((s, o) => s + o.netProfit, 0) / platformOrders.reduce((s, o) => s + o.totalPrice + o.buyerShippingFee, 0)) * 100)
+                      : 0}%
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       )}

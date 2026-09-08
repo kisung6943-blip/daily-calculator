@@ -115,6 +115,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     };
   });
 
+  // Daily Sales per Site (Platform x Date Matrix)
+  const platformList = Object.values(PLATFORMS);
+  const dailyPlatformMatrix = dates.sort().reverse().map((date) => {
+    const dOrders = orders.filter((o) => o.orderDate === date);
+    const siteSalesMap: Record<string, { sales: number; orderCount: number; netProfit: number }> = {};
+    let dateTotalSales = 0;
+
+    platformList.forEach((p) => {
+      const siteOrders = dOrders.filter((o) => o.platform === p.id);
+      const sales = siteOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
+      const netProfit = siteOrders.reduce((sum, o) => sum + o.netProfit, 0);
+      siteSalesMap[p.id] = { sales, orderCount: siteOrders.length, netProfit };
+      dateTotalSales += sales;
+    });
+
+    return {
+      date,
+      siteSalesMap,
+      dateTotalSales,
+      totalOrderCount: dOrders.length,
+    };
+  });
+
   return (
     <div className="space-y-6">
       {/* Unmatched Cost Alert Banner if any */}
@@ -421,6 +444,92 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </td>
                 <td className="py-3 px-3 text-center text-indigo-900">
                   {avgMargin}%
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {/* Site-by-Site Daily Sales Comparison Table (Platform x Date Matrix) */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+          <div className="flex items-center space-x-2">
+            <Layers className="w-4 h-4 text-indigo-600" />
+            <h3 className="text-sm font-bold text-slate-900">
+              📊 사이트(플랫폼)별 일자별 일매출액 비교표
+            </h3>
+          </div>
+          <span className="text-xs text-slate-500">
+            * 각 사이트 이름을 클릭하면 해당 사이트 상세 정산표로 이동합니다
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-xs text-left">
+            <thead className="bg-slate-100/90 text-slate-700 font-semibold border-b border-slate-200">
+              <tr>
+                <th className="py-2.5 px-4 sticky left-0 bg-slate-100/90 shadow-2xs">정산 일자</th>
+                {platformList.map((p) => (
+                  <th 
+                    key={p.id} 
+                    onClick={() => onSelectPlatform(p.id)}
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-200/70 transition-colors"
+                  >
+                    <span className="flex items-center justify-end gap-1 font-bold text-slate-800">
+                      {p.shortName} ↗
+                    </span>
+                  </th>
+                ))}
+                <th className="py-2.5 px-4 text-right font-extrabold text-indigo-900 bg-indigo-50/50">일 합계</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-700">
+              {dailyPlatformMatrix.map((row) => (
+                <tr key={row.date} className="hover:bg-slate-50/80 transition-colors">
+                  <td className="py-2.5 px-4 font-bold text-slate-900 sticky left-0 bg-white shadow-2xs">
+                    {row.date}
+                  </td>
+                  {platformList.map((p) => {
+                    const data = row.siteSalesMap[p.id];
+                    const sales = data?.sales || 0;
+                    return (
+                      <td key={p.id} className="py-2.5 px-3 text-right font-medium">
+                        {sales > 0 ? (
+                          <div className="flex flex-col items-end">
+                            <span className="font-bold text-slate-900">{formatKRW(sales)}원</span>
+                            <span className="text-[10px] text-slate-400 font-semibold">{data.orderCount}건</span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="py-2.5 px-4 text-right font-extrabold text-indigo-700 text-sm bg-indigo-50/20">
+                    {formatKRW(row.dateTotalSales, true)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {/* Matrix Footer Totals */}
+            <tfoot className="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900">
+              <tr>
+                <td className="py-3 px-4 sticky left-0 bg-slate-100/90 shadow-2xs">사이트별 총 합계</td>
+                {platformList.map((p) => {
+                  const pOrders = orders.filter((o) => o.platform === p.id);
+                  const pTotalSales = pOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
+                  return (
+                    <td key={p.id} className="py-3 px-3 text-right">
+                      <div className="flex flex-col items-end">
+                        <span className="font-extrabold text-indigo-900">{formatKRW(pTotalSales)}원</span>
+                        <span className="text-[10px] text-indigo-600 font-semibold">{pOrders.length}건</span>
+                      </div>
+                    </td>
+                  );
+                })}
+                <td className="py-3 px-4 text-right text-indigo-950 text-sm bg-indigo-100/60 font-black">
+                  {formatKRW(totalSales, true)}
                 </td>
               </tr>
             </tfoot>
