@@ -304,8 +304,8 @@ export function processAllOrders(
     const isMulti = groupItems.length > 1 && Boolean(groupItems[0].recipient.trim());
     const bundleGroupId = isMulti ? `BUNDLE-${key.replace(/[^a-zA-Z0-9가-힣]/g, '')}` : undefined;
 
-    // 1. Calculate total customer shipping fee across group
-    const totalGroupBuyerShipping = groupItems.reduce((sum, item) => sum + (Number(item.buyerShippingFee) || 0), 0);
+    // 1. Calculate single customer shipping fee paid for the group (customers pay shipping fee ONCE per bundle order)
+    const singleGroupBuyerShipping = Math.max(...groupItems.map((item) => Number(item.buyerShippingFee) || 0));
 
     // 2. Pick representative item: the item with HIGHEST sale price (totalPrice or settlementAmount)
     let repIndex = 0;
@@ -328,7 +328,7 @@ export function processAllOrders(
       const updated = recalculateOrder(
         {
           ...item,
-          buyerShippingFee: isSubItem ? 0 : (isMulti ? totalGroupBuyerShipping : item.buyerShippingFee),
+          buyerShippingFee: isSubItem ? 0 : (isMulti ? singleGroupBuyerShipping : item.buyerShippingFee),
           isBundleShipping: isMulti,
           bundleGroupId,
         },
