@@ -305,23 +305,27 @@ export function processAllOrders(
     const isMulti = groupItems.length > 1 && Boolean(groupItems[0].recipient.trim());
     const bundleGroupId = isMulti ? `BUNDLE-${key.replace(/[^a-zA-Z0-9가-힣]/g, '')}` : undefined;
 
-    // Normalize rawBuyerShippingFee for items (fixing any legacy stored inflated fees)
-    groupItems.forEach((item) => {
-      if (item.rawBuyerShippingFee === undefined) {
-        if (isMulti && item.buyerShippingFee > 0 && groupItems.length > 1) {
-          // Legacy item had total sum (e.g. 5000 for 2 items, 10000 for 4 items)
-          const estimatedRaw = Math.round(item.buyerShippingFee / groupItems.length);
-          item.rawBuyerShippingFee = estimatedRaw > 0 ? estimatedRaw : 2500;
+    // Single customer shipping fee paid for the bundle group (customers pay shipping fee ONCE per bundle order)
+    let singleGroupBuyerShipping = 0;
+    if (isMulti) {
+      const fees = groupItems
+        .map((item) => {
+          const val = Number(item.rawBuyerShippingFee ?? item.buyerShippingFee) || 0;
+          return val;
+        })
+        .filter((f) => f > 0);
+
+      if (fees.length > 0) {
+        const maxFee = Math.max(...fees);
+        // If maxFee was inflated by old sum (e.g. 6000 for 2 items -> 3000, 5000 for 2 items -> 2500, 10000 for 4 items -> 2500)
+        if (maxFee >= 5000 && groupItems.length > 1) {
+          const feePerItem = Math.round(maxFee / groupItems.length);
+          singleGroupBuyerShipping = feePerItem >= 2000 ? feePerItem : 2500;
         } else {
-          item.rawBuyerShippingFee = item.buyerShippingFee || 0;
+          singleGroupBuyerShipping = Math.min(...fees);
         }
       }
-    });
-
-    // Single customer shipping fee paid for the group (customers pay shipping fee ONCE per bundle order, e.g. 2,500 KRW)
-    const singleGroupBuyerShipping = isMulti
-      ? Math.max(...groupItems.map((item) => Number(item.rawBuyerShippingFee) || 0))
-      : 0;
+    }
 
     // Pick representative item: the item with HIGHEST sale price (totalPrice or settlementAmount)
     let repIndex = 0;
@@ -344,7 +348,7 @@ export function processAllOrders(
       const updated = recalculateOrder(
         {
           ...item,
-          rawBuyerShippingFee: item.rawBuyerShippingFee,
+          rawBuyerShippingFee: item.rawBuyerShippingFee ?? (isSubItem ? singleGroupBuyerShipping : item.buyerShippingFee),
           buyerShippingFee: isSubItem ? 0 : (isMulti ? singleGroupBuyerShipping : item.buyerShippingFee),
           isBundleShipping: isMulti,
           bundleGroupId,
