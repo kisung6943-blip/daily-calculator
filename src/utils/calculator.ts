@@ -126,45 +126,22 @@ export function recalculateOrder(
   let knowledgeShoppingFee = Number(order.knowledgeShoppingFee) || 0;
   let settlementAmount = Number(order.settlementAmount) || 0;
 
-  if (platform === 'ohouse') {
-    // 오늘의집: 판매금액 - 정산금액 = 수수료 or calculated
-    if (order.settlementAmount && order.settlementAmount > 0) {
-      settlementAmount = Number(order.settlementAmount);
-      feeAmount = Math.max(0, totalPrice - settlementAmount);
-      feeRate = totalPrice > 0 ? (feeAmount / totalPrice) * 100 : feeRate;
-    } else {
-      feeAmount = Math.round(totalPrice * (feeRate / 100));
-      settlementAmount = totalPrice - feeAmount;
-    }
-  } else if (platform === 'smartstore') {
-    // 스마트스토어: 결제수수료 + 지식쇼핑수수료 (또는 엑셀 실 정산금액)
-    if (order.feeAmount !== undefined || order.knowledgeShoppingFee !== undefined || (order.settlementAmount && Number(order.settlementAmount) > 0)) {
-      feeAmount = Math.abs(Number(order.feeAmount) || 0);
-      knowledgeShoppingFee = Math.abs(Number(order.knowledgeShoppingFee) || 0);
-      if (order.settlementAmount && Number(order.settlementAmount) > 0) {
-        settlementAmount = Number(order.settlementAmount);
-      } else {
-        settlementAmount = totalPrice - (feeAmount + knowledgeShoppingFee);
-      }
-    } else {
-      const baseFee = Math.round(totalPrice * (settings.smartstoreBaseFee / 100));
-      const kFee = Math.round(totalPrice * (settings.smartstoreKnowledgeFee / 100));
-      feeAmount = baseFee;
-      knowledgeShoppingFee = kFee;
-      settlementAmount = totalPrice - (baseFee + kFee);
-    }
+  if (platform === 'smartstore') {
+    // 스마트스토어: 결제수수료 + 지식쇼핑수수료 (정산금액 = 총판매가 - 수수료합)
+    feeAmount = order.feeAmount !== undefined ? Math.abs(Number(order.feeAmount)) : Math.round(totalPrice * (settings.smartstoreBaseFee / 100));
+    knowledgeShoppingFee = order.knowledgeShoppingFee !== undefined ? Math.abs(Number(order.knowledgeShoppingFee)) : Math.round(totalPrice * (settings.smartstoreKnowledgeFee / 100));
+    settlementAmount = totalPrice - (feeAmount + knowledgeShoppingFee);
   } else {
-    // 오늘의집, 쿠팡, 자사몰, 11번가, G마켓, 옥션
-    if (order.settlementAmount !== undefined && Number(order.settlementAmount) > 0) {
-      settlementAmount = Number(order.settlementAmount);
-      feeAmount = order.feeAmount !== undefined ? Math.abs(Number(order.feeAmount)) : Math.max(0, totalPrice - settlementAmount);
-    } else if (order.feeAmount !== undefined && Number(order.feeAmount) > 0) {
+    // 쿠팡, 오늘의집, 자사몰(홈페이지), 11번가, G마켓, 옥션: (정산금액 = 총판매가 - 수수료)
+    if (order.feeAmount !== undefined && Number(order.feeAmount) > 0) {
       feeAmount = Math.abs(Number(order.feeAmount));
-      settlementAmount = totalPrice - feeAmount;
+    } else if (order.settlementAmount !== undefined && Number(order.settlementAmount) > 0 && Math.abs(totalPrice - Number(order.settlementAmount)) < totalPrice) {
+      // If settlementAmount was provided, compute implied fee
+      feeAmount = Math.max(0, totalPrice - Number(order.settlementAmount));
     } else {
       feeAmount = Math.round(totalPrice * (feeRate / 100));
-      settlementAmount = Math.round(totalPrice - feeAmount);
     }
+    settlementAmount = totalPrice - feeAmount;
   }
 
   // Cost
