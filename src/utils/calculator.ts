@@ -264,16 +264,38 @@ export function processAllOrders(
   costItems: CostItem[],
   settings: SettlementSettings
 ): OrderItem[] {
+  // Pre-normalize cost items once to prevent hundreds of thousands of regex operations
+  const preprocessedCosts = (costItems || []).map((c) => {
+    const normP = normalizeText(c.productName);
+    const rawNormP = c.productName ? c.productName.toLowerCase().replace(/[^a-zA-Z0-9가-힣]/g, '') : '';
+    const normOpt = normalizeText(c.optionName);
+    const isOptDefault = !normOpt || normOpt === '기본' || normOpt === '단품' || normOpt === '없음' || normOpt === '-';
+    return { normP, rawNormP, normOpt, isOptDefault, cost: c.cost };
+  });
+
   // First pass: match costs if not manually overridden
   const matchedOrders = orders.map((ord) => {
     let unitCost = ord.unitCost;
     let isMatched = ord.isCostMatched;
 
     if (!unitCost || unitCost === 0 || !isMatched) {
-      const matchResult = findMatchingCost(ord.productName, ord.optionName, costItems);
-      if (matchResult.isMatched) {
-        unitCost = matchResult.cost;
-        isMatched = true;
+      if (ord.productName && preprocessedCosts.length > 0) {
+        const normOrdP = normalizeText(ord.productName);
+        const rawNormOrdP = ord.productName.toLowerCase().replace(/[^a-zA-Z0-9가-힣]/g, '');
+        const normOrdOpt = normalizeText(ord.optionName);
+        const isOrdOptDefault = !normOrdOpt || normOrdOpt === '기본' || normOrdOpt === '단품' || normOrdOpt === '없음' || normOrdOpt === '-';
+
+        const found = preprocessedCosts.find((c) => {
+          const isProdMatch = c.normP === normOrdP || (rawNormOrdP && c.rawNormP === rawNormOrdP);
+          if (!isProdMatch) return false;
+          if (c.isOptDefault && isOrdOptDefault) return true;
+          return c.normOpt === normOrdOpt;
+        });
+
+        if (found) {
+          unitCost = found.cost;
+          isMatched = true;
+        }
       }
     }
 

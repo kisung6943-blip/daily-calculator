@@ -88,10 +88,10 @@ export default function App() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [quickCostTargetOrder, setQuickCostTargetOrder] = useState<OrderItem | null>(null);
 
-  // Force recalculation of all orders with 10% tax rate on mount/settings change
+  // Force recalculation of all orders on settings change
   useEffect(() => {
     setOrders((prev) => processAllOrders(prev, costItems, settings));
-  }, [settings, costItems]);
+  }, [settings]);
 
   // Sync to localStorage
   useEffect(() => {
