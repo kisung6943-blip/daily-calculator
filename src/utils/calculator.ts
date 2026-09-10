@@ -104,16 +104,16 @@ export function recalculateOrder(
   let totalPrice = 0;
   let unitPrice = 0;
 
-  if (order.totalPrice !== undefined && Number(order.totalPrice) > 0) {
-    totalPrice = Number(order.totalPrice);
-    if (order.unitPrice !== undefined && Number(order.unitPrice) > 0 && Math.abs(Number(order.unitPrice) * quantity - totalPrice) < 2) {
-      unitPrice = Number(order.unitPrice);
-    } else {
-      unitPrice = Math.round(totalPrice / quantity);
-    }
-  } else if (order.unitPrice !== undefined && Number(order.unitPrice) > 0) {
+  if (order.unitPrice !== undefined && Number(order.unitPrice) > 0) {
     unitPrice = Number(order.unitPrice);
-    totalPrice = unitPrice * quantity;
+    if (order.totalPrice !== undefined && Number(order.totalPrice) > 0 && Math.abs(unitPrice * quantity - Number(order.totalPrice)) < 2) {
+      totalPrice = Number(order.totalPrice);
+    } else {
+      totalPrice = unitPrice * quantity;
+    }
+  } else if (order.totalPrice !== undefined && Number(order.totalPrice) > 0) {
+    totalPrice = Number(order.totalPrice);
+    unitPrice = Math.round(totalPrice / quantity);
   }
 
   // Buyer shipping fee: if bundle sub-item, 0 unless specified

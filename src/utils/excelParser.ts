@@ -127,15 +127,17 @@ export async function parseExcelOrders(
     [
       '구매금액(수량X판매가)', '총상품구매금액', '총 상품구매금액', '총 상품구매',
       '총결제금액', '결제금액', '결액', '구매금액', '총주문금액', '판매가합계', '판매금액',
-      '판매가', '판매가격', '옵션판매가', '상품판매가', '주문금액', '상품금액', '공급가', '결제액'
+      '판매가', '판매가격', '상품판매가', '주문금액', '상품금액', '공급가', '결제액'
     ],
-    ['옵션+판매', '개별단가', '단가']
+    ['옵션+판매', '개별단가', '단가', '단가)']
   );
   if (priceIdx < 0) {
     priceIdx = getColIdx(['금액', '가격', '결제', '결액', '액']);
   }
 
-  let unitPriceIdx = getColIdx(['옵션+판매', '개별단가', '단가', '개당', '옵션판매가', '개별판매가', '1개당가격']);
+  let unitPriceIdx = getColIdx([
+    '옵션+판매', '옵션+판매가', '옵션판매가', '옵션가', '개별단가', '단가', '개당', '개별판매가', '1개당가격', '판매가(단가)', '상품단가', '옵션단가'
+  ]);
 
   const shippingIdx = getColIdx(
     ['택배비', '총배송비', '배송비결제', '고객배송비', '배송비2', '배송비금액', '배송비', '배송비부담'],
@@ -219,13 +221,14 @@ export async function parseExcelOrders(
     let rawUnitPrice = unitPriceIdx >= 0 && row[unitPriceIdx] !== undefined ? Number(String(row[unitPriceIdx]).replace(/[^0-9.-]/g, '')) : 0;
 
     // Handle unit price vs total price
-    if (rawPrice > 0 && rawUnitPrice === 0) {
-      // rawPrice is the total row payment amount (e.g. 4,200 for 3 items)
-      rawUnitPrice = Math.round(rawPrice / quantity);
-    } else if (rawPrice === 0 && rawUnitPrice > 0) {
-      rawPrice = rawUnitPrice * quantity;
-    } else if (rawPrice > 0 && rawUnitPrice > 0 && rawPrice === rawUnitPrice) {
-      // Both columns pointed to same column or single price given -> rawPrice is total payment
+    if (rawUnitPrice > 0) {
+      if (rawPrice > 0 && Math.abs(rawUnitPrice * quantity - rawPrice) < 2) {
+        // rawPrice matches item total (unitPrice * quantity)
+      } else {
+        // rawPrice was cart total or aggregate sum instead of item total
+        rawPrice = rawUnitPrice * quantity;
+      }
+    } else if (rawPrice > 0) {
       rawUnitPrice = Math.round(rawPrice / quantity);
     }
 

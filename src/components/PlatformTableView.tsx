@@ -734,12 +734,12 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                         )}
                       </td>
 
-                      {/* 7. Selling Price */}
+                      {/* 7. Selling Price (단가 / 옵션+판매가) */}
                       <td
-                        onClick={() => handleStartEdit(ord, 'totalPrice', ord.totalPrice)}
+                        onClick={() => handleStartEdit(ord, 'unitPrice', ord.unitPrice)}
                         className="py-2 px-3 text-right font-semibold text-slate-900 hover:bg-yellow-50 cursor-pointer"
                       >
-                        {editingCell?.id === ord.id && editingCell?.field === 'totalPrice' ? (
+                        {editingCell?.id === ord.id && editingCell?.field === 'unitPrice' ? (
                           <input
                             type="number"
                             value={editValue}
@@ -750,7 +750,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             className="w-20 text-xs p-1 border rounded bg-white text-right"
                           />
                         ) : (
-                          formatKRW(ord.totalPrice)
+                          formatKRW(ord.unitPrice)
                         )}
                       </td>
 

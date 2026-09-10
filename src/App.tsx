@@ -21,7 +21,24 @@ export default function App() {
     let rawOrders = INITIAL_ORDERS;
     try {
       const saved = localStorage.getItem(STORAGE_ORDERS_KEY);
-      if (saved) rawOrders = JSON.parse(saved);
+      if (saved) {
+        rawOrders = JSON.parse(saved);
+        // Auto-migrate legacy saved orders where cart total (84300) was stored as unitPrice
+        rawOrders = rawOrders.map((ord) => {
+          if (ord.unitPrice === 84300 || ord.totalPrice === 84300) {
+            if (ord.orderNumber === '4082' || ord.productName.includes('보조손잡이')) {
+              return { ...ord, unitPrice: 9500, totalPrice: 9500 };
+            }
+            if (ord.orderNumber === '3880' || ord.productName.includes('아랫손잡이')) {
+              return { ...ord, unitPrice: 15000, totalPrice: 15000 };
+            }
+            if (ord.orderNumber === '2880' || ord.productName.includes('고무패킹 22cm 정품')) {
+              return { ...ord, unitPrice: 29900, totalPrice: 59800 };
+            }
+          }
+          return ord;
+        });
+      }
     } catch (e) {
       console.error(e);
     }
