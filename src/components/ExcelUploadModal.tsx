@@ -21,7 +21,7 @@ interface ExcelUploadModalProps {
   onClose: () => void;
   costItems: CostItem[];
   settings: SettlementSettings;
-  onImportOrders: (newOrders: OrderItem[], importMode: 'append' | 'replace_platform' | 'replace_all') => void;
+  onImportOrders: (newOrders: OrderItem[], importMode: 'append' | 'replace_platform_date' | 'replace_platform' | 'replace_all') => void;
 }
 
 export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
@@ -41,7 +41,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
     detectedPlatform: PlatformType;
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [importMode, setImportMode] = useState<'append' | 'replace_platform' | 'replace_all'>('replace_platform');
+  const [importMode, setImportMode] = useState<'append' | 'replace_platform_date' | 'replace_platform' | 'replace_all'>('replace_platform_date');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -291,23 +291,23 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
               {/* Import Mode Options */}
               <div className="pt-2.5 border-t border-slate-200 space-y-1.5">
                 <span className="font-bold text-slate-800 text-xs block">가져오기 방식 선택:</span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   <label className={`flex items-start space-x-2 p-2 rounded-lg border cursor-pointer transition-all ${
-                    importMode === 'replace_platform'
-                      ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold'
+                    importMode === 'replace_platform_date'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                   }`}>
                     <input
                       type="radio"
                       name="importMode"
-                      checked={importMode === 'replace_platform'}
-                      onChange={() => setImportMode('replace_platform')}
-                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                      checked={importMode === 'replace_platform_date'}
+                      onChange={() => setImportMode('replace_platform_date')}
+                      className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
                     />
                     <div>
-                      <span className="block text-xs font-bold">해당 쇼핑몰만 교체 (추천)</span>
+                      <span className="block text-xs font-bold text-emerald-900">해당 쇼핑몰 + 해당 날짜만 교체 (추천)</span>
                       <span className="text-[10px] text-slate-500 font-normal block leading-tight mt-0.5">
-                        업로드한 쇼핑몰({PLATFORMS[parsedPreview.detectedPlatform]?.shortName || parsedPreview.detectedPlatform})의 기존 데이터만 덮어쓰고 타 쇼핑몰 내역은 유지
+                        업로드한 쇼핑몰({PLATFORMS[parsedPreview.detectedPlatform]?.shortName || parsedPreview.detectedPlatform})의 해당 일자 데이터만 덮어쓰고, 다른 날짜 내역 및 타 쇼핑몰 내역은 100% 보존
                       </span>
                     </div>
                   </label>
@@ -333,6 +333,26 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                   </label>
 
                   <label className={`flex items-start space-x-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                    importMode === 'replace_platform'
+                      ? 'bg-amber-50 border-amber-300 text-amber-900 font-bold'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="importMode"
+                      checked={importMode === 'replace_platform'}
+                      onChange={() => setImportMode('replace_platform')}
+                      className="mt-0.5 text-amber-600 focus:ring-amber-500"
+                    />
+                    <div>
+                      <span className="block text-xs font-bold text-amber-900">해당 쇼핑몰 전체 기간 교체</span>
+                      <span className="text-[10px] text-slate-500 font-normal block leading-tight mt-0.5">
+                        해당 쇼핑몰의 모든 기존 날짜 데이터를 비우고 업로드한 파일 내용으로 전체 교체
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start space-x-2 p-2 rounded-lg border cursor-pointer transition-all ${
                     importMode === 'replace_all'
                       ? 'bg-rose-50 border-rose-300 text-rose-900 font-bold'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -345,9 +365,9 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                       className="mt-0.5 text-rose-600 focus:ring-rose-500"
                     />
                     <div>
-                      <span className="block text-xs font-bold text-rose-800">전체 데이터 초기화</span>
+                      <span className="block text-xs font-bold text-rose-800">전체 쇼핑몰 초기화</span>
                       <span className="text-[10px] text-slate-500 font-normal block leading-tight mt-0.5">
-                        모든 쇼핑몰의 기존 내역을 싹 비우고 전체 교체
+                        모든 쇼핑몰의 기존 내역을 싹 비우고 전체 초기화
                       </span>
                     </div>
                   </label>
@@ -355,17 +375,19 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
 
                 {/* Dynamic Safety Notice */}
                 <div className={`mt-3 p-2.5 rounded-lg border text-xs leading-relaxed ${
-                  importMode === 'replace_platform'
+                  importMode === 'replace_platform_date'
                     ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
                     : importMode === 'append'
                     ? 'bg-blue-50 border-blue-200 text-blue-900'
+                    : importMode === 'replace_platform'
+                    ? 'bg-amber-50 border-amber-200 text-amber-900'
                     : 'bg-rose-50 border-rose-200 text-rose-900'
                 }`}>
-                  {importMode === 'replace_platform' && (
+                  {importMode === 'replace_platform_date' && (
                     <div className="font-semibold flex items-center space-x-1">
                       <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mr-1" />
                       <span>
-                        안전 안내: <strong>{PLATFORMS[parsedPreview.detectedPlatform]?.name || parsedPreview.detectedPlatform}</strong> 데이터만 교체됩니다. 기존 등록된 타 쇼핑몰(G마켓, 쿠팡, 스마트스토어 등)의 데이터는 <strong>절대 삭제되지 않고 그대로 유지</strong>됩니다!
+                        가장 안전한 방법: <strong>{PLATFORMS[parsedPreview.detectedPlatform]?.name || parsedPreview.detectedPlatform}</strong>의 업로드 날짜 데이터만 교체됩니다. 다른 날짜 내역과 타 쇼핑몰 데이터는 <strong>절대 삭제되지 않고 100% 안전하게 유지</strong>됩니다!
                       </span>
                     </div>
                   )}
@@ -374,6 +396,14 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                       <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mr-1" />
                       <span>
                         추가 안내: 기존 등록된 모든 쇼핑몰 데이터가 삭제되지 않고 새 데이터가 덧붙여집니다.
+                      </span>
+                    </div>
+                  )}
+                  {importMode === 'replace_platform' && (
+                    <div className="font-semibold flex items-center space-x-1">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mr-1" />
+                      <span>
+                        주의: <strong>{PLATFORMS[parsedPreview.detectedPlatform]?.name || parsedPreview.detectedPlatform}</strong>의 모든 이전 날짜 내역이 삭제되고 이 파일의 데이터로 교체됩니다. (타 쇼핑몰 데이터는 유지)
                       </span>
                     </div>
                   )}

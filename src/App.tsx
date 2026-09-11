@@ -297,11 +297,17 @@ export default function App() {
   // Excel Batch Import Handler
   const handleImportOrders = (
     newOrders: OrderItem[], 
-    importMode: 'append' | 'replace_platform' | 'replace_all'
+    importMode: 'append' | 'replace_platform_date' | 'replace_platform' | 'replace_all'
   ) => {
     let mergedOrders: OrderItem[];
     if (importMode === 'append') {
       mergedOrders = [...newOrders, ...orders];
+    } else if (importMode === 'replace_platform_date') {
+      // Create a set of (platform + orderDate) keys from incoming orders
+      const incomingKeys = new Set(newOrders.map((o) => `${o.platform}__${o.orderDate}`));
+      // Keep existing orders that do not match the incoming (platform + orderDate)
+      const remaining = orders.filter((o) => !incomingKeys.has(`${o.platform}__${o.orderDate}`));
+      mergedOrders = [...newOrders, ...remaining];
     } else if (importMode === 'replace_platform') {
       // Extract platforms present in newOrders
       const newPlatforms = new Set(newOrders.map((o) => o.platform));
