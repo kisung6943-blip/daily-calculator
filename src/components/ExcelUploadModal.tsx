@@ -239,8 +239,11 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
               <div className="flex items-center justify-between">
                 <span className="font-bold text-slate-900 flex items-center">
                   <Check className="w-4 h-4 text-emerald-600 mr-1" />
-                  파싱 완료: 총 {parsedPreview.orders.length}개 주문 데이터 감지됨 (플랫폼:{' '}
-                  {PLATFORMS[parsedPreview.detectedPlatform]?.name || parsedPreview.detectedPlatform})
+                  파싱 완료: 총 {parsedPreview.orders.length}개 주문 데이터 감지됨 (
+                  {new Set(parsedPreview.orders.map((o) => o.platform)).size > 1
+                    ? `${new Set(parsedPreview.orders.map((o) => o.platform)).size}개 쇼핑몰 전체통합 정산표`
+                    : PLATFORMS[parsedPreview.detectedPlatform]?.name || parsedPreview.detectedPlatform}
+                  )
                 </span>
                 <span className="text-[11px] text-slate-500 font-medium">
                   원가 매칭률:{' '}
