@@ -133,15 +133,17 @@ export function recalculateOrder(
     settlementAmount = totalPrice - (feeAmount + knowledgeShoppingFee);
   } else {
     // 쿠팡, 오늘의집, 자사몰(홈페이지), 11번가, G마켓, 옥션: (정산금액 = 총판매가 - 수수료)
-    if (order.feeAmount !== undefined && Number(order.feeAmount) > 0) {
+    if (order.settlementAmount !== undefined && Number(order.settlementAmount) > 0 && Math.abs(totalPrice - Number(order.settlementAmount)) <= totalPrice) {
+      // Prioritize explicit settlement amount from Excel
+      settlementAmount = Number(order.settlementAmount);
+      feeAmount = Math.max(0, totalPrice - settlementAmount);
+    } else if (order.feeAmount !== undefined && Number(order.feeAmount) > 0) {
       feeAmount = Math.abs(Number(order.feeAmount));
-    } else if (order.settlementAmount !== undefined && Number(order.settlementAmount) > 0 && Math.abs(totalPrice - Number(order.settlementAmount)) < totalPrice) {
-      // If settlementAmount was provided, compute implied fee
-      feeAmount = Math.max(0, totalPrice - Number(order.settlementAmount));
+      settlementAmount = totalPrice - feeAmount;
     } else {
       feeAmount = Math.round(totalPrice * (feeRate / 100));
+      settlementAmount = totalPrice - feeAmount;
     }
-    settlementAmount = totalPrice - feeAmount;
   }
 
   // Cost
