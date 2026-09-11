@@ -221,7 +221,11 @@ export async function parseExcelOrders(
     let rawUnitPrice = unitPriceIdx >= 0 && row[unitPriceIdx] !== undefined ? Number(String(row[unitPriceIdx]).replace(/[^0-9.-]/g, '')) : 0;
 
     // Handle unit price vs total price
-    if (rawUnitPrice > 0) {
+    if (platform === 'ohouse') {
+      const baseUnitPrice = rawUnitPrice > 0 ? rawUnitPrice : rawPrice;
+      rawUnitPrice = baseUnitPrice;
+      rawPrice = baseUnitPrice * quantity;
+    } else if (rawUnitPrice > 0) {
       if (rawPrice > 0 && Math.abs(rawUnitPrice * quantity - rawPrice) < 2) {
         // rawPrice matches item total (unitPrice * quantity)
       } else {
