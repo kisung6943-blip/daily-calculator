@@ -115,6 +115,7 @@ export async function parseExcelOrders(
     });
   };
 
+  const platformIdx = getColIdx(['플랫폼', '쇼핑몰', '판매처', '채널']);
   const dateIdx = getColIdx(['날짜', '주문일', '일자', '결제일', '정산일', '발주일', '결제일시', '주문일시', '발주의뢰일']);
   const orderNoIdx = getColIdx(['주문번호', '상품주문번호', '주문ID', 'OrderNo', '발주번호', '묶음주문번호', '주문 번호']);
   const productNoIdx = getColIdx(['상품번호', '상품코드', '옵션ID', '노출옵션ID', '등록옵션ID', '딜번호']);
@@ -184,6 +185,18 @@ export async function parseExcelOrders(
     const productName = productIdx >= 0 && row[productIdx] ? String(row[productIdx]).trim() : '';
     if (!productName) continue;
 
+    let rowPlatform: PlatformType = platform;
+    if (platformIdx >= 0 && row[platformIdx]) {
+      const pStr = String(row[platformIdx]).trim().toLowerCase();
+      if (pStr.includes('ohouse') || pStr.includes('오늘의집')) rowPlatform = 'ohouse';
+      else if (pStr.includes('smartstore') || pStr.includes('스토어팜') || pStr.includes('네이버')) rowPlatform = 'smartstore';
+      else if (pStr.includes('coupang') || pStr.includes('쿠팡')) rowPlatform = 'coupang';
+      else if (pStr.includes('homepage') || pStr.includes('자사몰') || pStr.includes('홈페이지')) rowPlatform = 'homepage';
+      else if (pStr.includes('elevenst') || pStr.includes('11번가')) rowPlatform = 'elevenst';
+      else if (pStr.includes('gmarket') || pStr.includes('g마켓')) rowPlatform = 'gmarket';
+      else if (pStr.includes('auction') || pStr.includes('옥션')) rowPlatform = 'auction';
+    }
+
     let orderDateRaw = forcedDate;
     if (!orderDateRaw) {
       const rawDateVal = dateIdx >= 0 && row[dateIdx] ? String(row[dateIdx]).trim() : '';
@@ -221,7 +234,7 @@ export async function parseExcelOrders(
     let rawUnitPrice = unitPriceIdx >= 0 && row[unitPriceIdx] !== undefined ? Number(String(row[unitPriceIdx]).replace(/[^0-9.-]/g, '')) : 0;
 
     // Handle unit price vs total price
-    if (platform === 'ohouse') {
+    if (rowPlatform === 'ohouse') {
       const baseUnitPrice = rawUnitPrice > 0 ? rawUnitPrice : rawPrice;
       rawUnitPrice = baseUnitPrice;
       rawPrice = baseUnitPrice * quantity;
@@ -254,7 +267,7 @@ export async function parseExcelOrders(
     const rawCost = costIdx >= 0 && row[costIdx] !== undefined ? Number(String(row[costIdx]).replace(/[^0-9.-]/g, '')) : undefined;
 
     const orderObj: Partial<OrderItem> = {
-      platform,
+      platform: rowPlatform,
       orderDate: orderDateRaw,
       orderNumber,
       productNumber,
