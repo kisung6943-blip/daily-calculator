@@ -1,16 +1,25 @@
 import { CostItem, OrderItem, PlatformType, SettlementSettings } from '../types';
 
+const normCache = new Map<string, string>();
+
 /**
- * Clean & normalize string for fuzzy matching
+ * Clean & normalize string for fuzzy matching (memoized for speed)
  */
 export function normalizeText(str: string): string {
   if (!str) return '';
-  return str
+  const cached = normCache.get(str);
+  if (cached !== undefined) return cached;
+
+  const normalized = str
     .toLowerCase()
     .replace(/^[0-9]+[.\s]*/, '') // Remove leading digits like "3.", "64." from Ohouse product names
     .replace(/\s+/g, ' ')
     .replace(/[\[\]\(\)\{\}\-_,]/g, '')
     .trim();
+
+  if (normCache.size > 5000) normCache.clear();
+  normCache.set(str, normalized);
+  return normalized;
 }
 
 /**
@@ -232,6 +241,22 @@ export function recalculateOrder(
   };
 }
 
+
+/**
+ * Deduplicate exact identical order items (same platform, date, order number, product, option, recipient, qty, price)
+ */
+export function deduplicateOrders(orders: OrderItem[]): OrderItem[] {
+  const seen = new Set<string>();
+  return orders.filter((o) => {
+    const signature = `${o.platform || ''}__${o.orderDate || ''}__${o.orderNumber || ''}__${(o.productName || '').trim()}__${(o.optionName || '').trim()}__${(o.recipient || '').trim()}__${o.quantity}__${o.totalPrice}`;
+    if (seen.has(signature)) {
+      return false;
+    }
+    seen.add(signature);
+    return true;
+  });
+}
+
 /**
  * Process an entire list of orders:
  * 1. Automatically detect bundle shipments (same date + same recipient)
@@ -243,13 +268,16 @@ export function processAllOrders(
   costItems: CostItem[],
   settings: SettlementSettings
 ): OrderItem[] {
-  // Pre-normalize cost items once to prevent hundreds of thousands of regex operations
-  const preprocessedCosts = (costItems || []).map((c) => {
+  // Build Map for O(1) cost lookups
+  const costMap = new Map<string, number>();
+  (costItems || []).forEach((c) => {
     const normP = normalizeText(c.productName);
     const rawNormP = c.productName ? c.productName.toLowerCase().replace(/[^a-zA-Z0-9가-힣]/g, '') : '';
     const normOpt = normalizeText(c.optionName);
-    const isOptDefault = !normOpt || normOpt === '기본' || normOpt === '단품' || normOpt === '없음' || normOpt === '-';
-    return { normP, rawNormP, normOpt, isOptDefault, cost: c.cost };
+    const optKey = (!normOpt || normOpt === '기본' || normOpt === '단품' || normOpt === '없음' || normOpt === '-') ? 'default' : normOpt;
+
+    if (normP) costMap.set(`${normP}__${optKey}`, c.cost);
+    if (rawNormP) costMap.set(`${rawNormP}__${optKey}`, c.cost);
   });
 
   // First pass: match costs if not manually overridden
@@ -258,21 +286,20 @@ export function processAllOrders(
     let isMatched = ord.isCostMatched;
 
     if (!unitCost || unitCost === 0 || !isMatched) {
-      if (ord.productName && preprocessedCosts.length > 0) {
+      if (ord.productName) {
         const normOrdP = normalizeText(ord.productName);
         const rawNormOrdP = ord.productName.toLowerCase().replace(/[^a-zA-Z0-9가-힣]/g, '');
         const normOrdOpt = normalizeText(ord.optionName);
-        const isOrdOptDefault = !normOrdOpt || normOrdOpt === '기본' || normOrdOpt === '단품' || normOrdOpt === '없음' || normOrdOpt === '-';
+        const optKey = (!normOrdOpt || normOrdOpt === '기본' || normOrdOpt === '단품' || normOrdOpt === '없음' || normOrdOpt === '-') ? 'default' : normOrdOpt;
 
-        const found = preprocessedCosts.find((c) => {
-          const isProdMatch = c.normP === normOrdP || (rawNormOrdP && c.rawNormP === rawNormOrdP);
-          if (!isProdMatch) return false;
-          if (c.isOptDefault && isOrdOptDefault) return true;
-          return c.normOpt === normOrdOpt;
-        });
-
-        if (found) {
-          unitCost = found.cost;
+        const matchedCost =
+          costMap.get(`${normOrdP}__${optKey}`) ??
+          costMap.get(`${normOrdP}__default`) ??
+          (rawNormOrdP
+            ? costMap.get(`${rawNormOrdP}__${optKey}`) ?? costMap.get(`${rawNormOrdP}__default`)
+            : undefined);
+        if (matchedCost !== undefined && matchedCost > 0) {
+          unitCost = matchedCost;
           isMatched = true;
         }
       }
@@ -364,6 +391,101 @@ export function processAllOrders(
   return result;
 }
 
+const ENG_KEY: Record<string, string> = {
+  r: 'ㄱ', R: 'ㄲ', s: 'ㄴ', e: 'ㄷ', E: 'ㄸ', f: 'ㄹ', a: 'ㅁ', q: 'ㅂ', Q: 'ㅃ',
+  t: 'ㅅ', T: 'ㅆ', d: 'ㅇ', w: 'ㅈ', W: 'ㅉ', c: 'ㅊ', z: 'ㅋ', x: 'ㅌ', v: 'ㅍ', g: 'ㅎ',
+  k: 'ㅏ', o: 'ㅐ', i: 'ㅑ', O: 'ㅒ', j: 'ㅓ', p: 'ㅔ', u: 'ㅕ', P: 'ㅖ', h: 'ㅗ',
+  y: 'ㅛ', n: 'ㅜ', b: 'ㅠ', m: 'ㅡ', l: 'ㅣ'
+};
+
+const CHO = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+const JOUNG = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ'];
+const JONG = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄴㅈ', 'ㄴㅎ', 'ㄷ', 'ㄹ', 'ㄹㄱ', 'ㄹㅁ', 'ㄹㅂ', 'ㄹㅅ', 'ㄹㅌ', 'ㄹㅍ', 'ㄹㅎ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+
+const D_JOUNG: Record<string, string> = { 'ㅗㅏ': 'ㅘ', 'ㅗㅐ': 'ㅙ', 'ㅗㅣ': 'ㅚ', 'ㅜㅓ': 'ㅝ', 'ㅜㅔ': 'ㅞ', 'ㅜㅣ': 'ㅟ', 'ㅡㅣ': 'ㅢ' };
+const D_JONG: Record<string, string> = { 'ㄱㅅ': 'ㄳ', 'ㄴㅈ': 'ㄴㅈ', 'ㄴㅎ': 'ㄴㅎ', 'ㄹㄱ': 'ㄹㄱ', 'ㄹㅁ': 'ㄹㅁ', 'ㄹㅂ': 'ㄹㅂ', 'ㄹㅅ': 'ㄹㅅ', 'ㄹㅌ': 'ㄹㅌ', 'ㄹㅍ': 'ㄹㅍ', 'ㄹㅎ': 'ㄹㅎ', 'ㅂㅅ': 'ㅄ' };
+
+/**
+ * Convert English QWERTY key strokes to Korean Hangul (영타 -> 한글 자동 변환)
+ */
+export function engToKor(input: string): string {
+  if (!input) return input;
+  // Remove trailing punctuation (like ';' or ',') often hit accidentally while typing in QWERTY mode
+  const cleanInput = input.replace(/[;,._\-]+$/g, '');
+  const target = /[a-zA-Z]/.test(cleanInput) ? cleanInput : input;
+  if (!/[a-zA-Z]/.test(target)) return input;
+
+  let result = '';
+  const len = target.length;
+  let i = 0;
+
+  while (i < len) {
+    const char = target[i];
+    if (!ENG_KEY[char]) {
+      result += char;
+      i++;
+      continue;
+    }
+
+    const choIdx = CHO.indexOf(ENG_KEY[char]);
+    if (choIdx < 0) {
+      result += ENG_KEY[char];
+      i++;
+      continue;
+    }
+
+    if (i + 1 < len && ENG_KEY[input[i + 1]] && JOUNG.indexOf(ENG_KEY[input[i + 1]]) >= 0) {
+      let joungStr = ENG_KEY[input[i + 1]];
+      let nextIdx = i + 2;
+
+      if (nextIdx < len && ENG_KEY[input[nextIdx]]) {
+        const combinedJoung = D_JOUNG[joungStr + ENG_KEY[input[nextIdx]]];
+        if (combinedJoung) {
+          joungStr = combinedJoung;
+          nextIdx++;
+        }
+      }
+
+      const joungIdx = JOUNG.indexOf(joungStr);
+      let jongIdx = 0;
+
+      if (nextIdx < len && ENG_KEY[input[nextIdx]]) {
+        const candidate1 = ENG_KEY[input[nextIdx]];
+        const candidate1JongIdx = JONG.indexOf(candidate1);
+        const isFollowedByVowel = nextIdx + 1 < len && ENG_KEY[input[nextIdx + 1]] && JOUNG.indexOf(ENG_KEY[input[nextIdx + 1]]) >= 0;
+
+        if (candidate1JongIdx > 0 && !isFollowedByVowel) {
+          if (nextIdx + 1 < len && ENG_KEY[input[nextIdx + 1]]) {
+            const candidate2 = ENG_KEY[input[nextIdx + 1]];
+            const doubleJong = D_JONG[candidate1 + candidate2];
+            const isDoubleFollowedByVowel = nextIdx + 2 < len && ENG_KEY[input[nextIdx + 2]] && JOUNG.indexOf(ENG_KEY[input[nextIdx + 2]]) >= 0;
+
+            if (doubleJong && JONG.indexOf(doubleJong) > 0 && !isDoubleFollowedByVowel) {
+              jongIdx = JONG.indexOf(doubleJong);
+              nextIdx += 2;
+            } else {
+              jongIdx = candidate1JongIdx;
+              nextIdx++;
+            }
+          } else {
+            jongIdx = candidate1JongIdx;
+            nextIdx++;
+          }
+        }
+      }
+
+      const syllableCode = 0xac00 + (choIdx * 21 + joungIdx) * 28 + jongIdx;
+      result += String.fromCharCode(syllableCode);
+      i = nextIdx;
+    } else {
+      result += ENG_KEY[char];
+      i++;
+    }
+  }
+
+  return result;
+}
+
 /**
  * Format currency in Korean Won (e.g. 1,500원 or 1,500)
  */
@@ -371,3 +493,4 @@ export function formatKRW(val: number, withWon: boolean = false): string {
   const formatted = new Intl.NumberFormat('ko-KR').format(Math.round(val || 0));
   return withWon ? `${formatted}원` : formatted;
 }
+

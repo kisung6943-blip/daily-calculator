@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   AlertTriangle, 
   ArrowUpDown,
@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { PLATFORMS } from '../data/initialData';
 import { CostItem, OrderItem, PlatformType, SettlementSettings } from '../types';
-import { formatKRW, recalculateOrder } from '../utils/calculator';
+import { engToKor, formatKRW, recalculateOrder } from '../utils/calculator';
 import { exportOrdersToExcel } from '../utils/excelParser';
 
 interface PlatformTableViewProps {
@@ -49,26 +49,97 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
   onOpenUploadModal,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [autoConvertEng, setAutoConvertEng] = useState(true);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [sortField, setSortField] = useState<'default' | 'netProfit' | 'productName' | 'marginRate' | 'totalPrice'>('default');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleSearchChange = (val: string) => {
+    if (autoConvertEng && /[a-zA-Z]/.test(val)) {
+      setSearchTerm(engToKor(val));
+    } else {
+      setSearchTerm(val);
+    }
+  };
+
+  const handleScrollLeft = () => {
+    tableContainerRef.current?.scrollBy({ left: -400, behavior: 'smooth' });
+  };
+
+  const handleScrollRight = () => {
+    tableContainerRef.current?.scrollBy({ left: 400, behavior: 'smooth' });
+  };
+
+  const handleScrollTop = () => {
+    tableContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleScrollBottom = () => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTo({ top: tableContainerRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  };
 
   const platformConfig = PLATFORMS[platform] || PLATFORMS.smartstore;
 
-  // Filter orders by platform and date and search
-  const platformOrders = orders.filter((o) => o.platform === platform);
-  const dateFiltered = selectedDate === 'all' ? platformOrders : platformOrders.filter((o) => o.orderDate === selectedDate);
-  const filteredOrders = dateFiltered.filter((o) => {
-    if (!searchTerm.trim()) return true;
-    const term = searchTerm.toLowerCase();
-    return (
-      o.productName.toLowerCase().includes(term) ||
-      o.optionName.toLowerCase().includes(term) ||
-      o.recipient.toLowerCase().includes(term) ||
-      o.orderNumber.toLowerCase().includes(term)
-    );
-  });
+  // Filter orders by platform and date and search (Memoized)
+  const platformOrders = useMemo(() => orders.filter((o) => o.platform === platform), [orders, platform]);
+
+  const platformTotals = useMemo(() => {
+    let sales = 0, settlement = 0, cost = 0, fees = 0, shippingPkg = 0, netProfit = 0;
+    for (let i = 0; i < platformOrders.length; i++) {
+      const o = platformOrders[i];
+      sales += (o.totalPrice + o.buyerShippingFee);
+      settlement += o.settlementAmount;
+      cost += o.totalCost;
+      fees += (o.feeAmount + (o.knowledgeShoppingFee || 0));
+      shippingPkg += (o.packagingCost + o.actualShippingCost);
+      netProfit += o.netProfit;
+    }
+    const margin = sales > 0 ? Math.round((netProfit / sales) * 100) : 0;
+    return { sales, settlement, cost, fees, shippingPkg, netProfit, margin };
+  }, [platformOrders]);
+  
+  const dateFiltered = useMemo(() => {
+    return selectedDate === 'all' ? platformOrders : platformOrders.filter((o) => o.orderDate === selectedDate);
+  }, [platformOrders, selectedDate]);
+
+  const korSearchTerm = useMemo(() => engToKor(searchTerm.trim()), [searchTerm]);
+  const korSearchTermBase = useMemo(() => korSearchTerm.replace(/[ㄱ-ㅎ]+$/g, ''), [korSearchTerm]);
+
+  const filteredOrders = useMemo(() => {
+    return dateFiltered.filter((o) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const korTerm = korSearchTerm.toLowerCase();
+      const korBase = korSearchTermBase.toLowerCase();
+
+      const matchRaw =
+        o.productName.toLowerCase().includes(term) ||
+        o.optionName.toLowerCase().includes(term) ||
+        o.recipient.toLowerCase().includes(term) ||
+        o.orderNumber.toLowerCase().includes(term);
+
+      const matchKor =
+        korTerm !== term &&
+        (o.productName.toLowerCase().includes(korTerm) ||
+          o.optionName.toLowerCase().includes(korTerm) ||
+          o.recipient.toLowerCase().includes(korTerm) ||
+          o.orderNumber.toLowerCase().includes(korTerm));
+
+      const matchKorBase =
+        korBase &&
+        korBase.length >= 2 &&
+        (o.productName.toLowerCase().includes(korBase) ||
+          o.optionName.toLowerCase().includes(korBase) ||
+          o.recipient.toLowerCase().includes(korBase) ||
+          o.orderNumber.toLowerCase().includes(korBase));
+
+      return matchRaw || matchKor || matchKorBase;
+    });
+  }, [dateFiltered, searchTerm, korSearchTerm, korSearchTermBase]);
 
   // Sort orders according to sortField
   const sortedOrders = useMemo(() => {
@@ -82,6 +153,21 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
       return sortOrder === 'desc' ? result : -result;
     });
   }, [filteredOrders, sortField, sortOrder]);
+
+  // Pagination state (Dynamic page size for smooth rendering)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+
+  const totalPages = useMemo(() => {
+    if (pageSize === 0) return 1;
+    return Math.max(1, Math.ceil(sortedOrders.length / pageSize));
+  }, [sortedOrders.length, pageSize]);
+
+  const paginatedOrders = useMemo(() => {
+    if (pageSize === 0) return sortedOrders;
+    const start = (currentPage - 1) * pageSize;
+    return sortedOrders.slice(start, start + pageSize);
+  }, [sortedOrders, currentPage, pageSize]);
 
   // Group by product name to get Top Net Profit Ranking
   const productProfitSummary = useMemo(() => {
@@ -100,33 +186,55 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
     })).sort((a, b) => b.totalNetProfit - a.totalNetProfit);
   }, [dateFiltered]);
 
-  // Daily Breakdown for this specific platform
+  // Daily Breakdown for this specific platform (O(N) single-pass optimization)
   const dailyPlatformSummaries = useMemo(() => {
-    const dates = Array.from(new Set(platformOrders.map((o) => o.orderDate))).sort().reverse();
-    return dates.map((date) => {
-      const dOrders = platformOrders.filter((o) => o.orderDate === date);
-      const dSales = dOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
-      const dSettlement = dOrders.reduce((sum, o) => sum + o.settlementAmount, 0);
-      const dCost = dOrders.reduce((sum, o) => sum + o.totalCost, 0);
-      const dFees = dOrders.reduce((sum, o) => sum + o.feeAmount + (o.knowledgeShoppingFee || 0), 0);
-      const dPack = dOrders.reduce((sum, o) => sum + o.packagingCost, 0);
-      const dActualShip = dOrders.reduce((sum, o) => sum + o.actualShippingCost, 0);
-      const dNetProfit = dOrders.reduce((sum, o) => sum + o.netProfit, 0);
-      const dMargin = dSales > 0 ? Math.round((dNetProfit / dSales) * 100) : 0;
+    const map = new Map<string, {
+      date: string;
+      orderCount: number;
+      sales: number;
+      settlement: number;
+      cost: number;
+      fees: number;
+      packagingTotal: number;
+      actualShippingTotal: number;
+      netProfit: number;
+      marginRate: number;
+    }>();
 
-      return {
-        date,
-        orderCount: dOrders.length,
-        sales: dSales,
-        settlement: dSettlement,
-        cost: dCost,
-        fees: dFees,
-        packagingTotal: dPack,
-        actualShippingTotal: dActualShip,
-        netProfit: dNetProfit,
-        marginRate: dMargin,
-      };
+    for (let i = 0; i < platformOrders.length; i++) {
+      const o = platformOrders[i];
+      const date = o.orderDate || '기타';
+      let entry = map.get(date);
+      if (!entry) {
+        entry = {
+          date,
+          orderCount: 0,
+          sales: 0,
+          settlement: 0,
+          cost: 0,
+          fees: 0,
+          packagingTotal: 0,
+          actualShippingTotal: 0,
+          netProfit: 0,
+          marginRate: 0,
+        };
+        map.set(date, entry);
+      }
+      entry.orderCount += 1;
+      entry.sales += (o.totalPrice + o.buyerShippingFee);
+      entry.settlement += o.settlementAmount;
+      entry.cost += o.totalCost;
+      entry.fees += (o.feeAmount + (o.knowledgeShoppingFee || 0));
+      entry.packagingTotal += o.packagingCost;
+      entry.actualShippingTotal += o.actualShippingCost;
+      entry.netProfit += o.netProfit;
+    }
+
+    const list = Array.from(map.values());
+    list.forEach((d) => {
+      d.marginRate = d.sales > 0 ? Math.round((d.netProfit / d.sales) * 100) : 0;
     });
+    return list.sort((a, b) => b.date.localeCompare(a.date));
   }, [platformOrders]);
 
   const handleSortToggle = (field: 'netProfit' | 'productName' | 'marginRate' | 'totalPrice') => {
@@ -138,20 +246,60 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
     }
   };
 
-  // Calculate Column Totals
-  const sumTotalSales = filteredOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
-  const sumProductSales = filteredOrders.reduce((sum, o) => sum + o.totalPrice, 0);
-  const sumBuyerShipping = filteredOrders.reduce((sum, o) => sum + o.buyerShippingFee, 0);
-  const sumFees = filteredOrders.reduce((sum, o) => sum + o.feeAmount + (o.knowledgeShoppingFee || 0), 0);
-  const sumSettlement = filteredOrders.reduce((sum, o) => sum + o.settlementAmount, 0);
-  const sumTotalCost = filteredOrders.reduce((sum, o) => sum + o.totalCost, 0);
-  const sumPackaging = filteredOrders.reduce((sum, o) => sum + o.packagingCost, 0);
-  const sumActualShipping = filteredOrders.reduce((sum, o) => sum + o.actualShippingCost, 0);
-  const sumGrossProfit = filteredOrders.reduce((sum, o) => sum + o.grossProfit, 0);
-  const sumVatDeducted = filteredOrders.reduce((sum, o) => sum + o.vatDeductedProfit, 0);
-  const sumIncomeTax = filteredOrders.reduce((sum, o) => sum + o.incomeTax, 0);
-  const sumNetProfit = filteredOrders.reduce((sum, o) => sum + o.netProfit, 0);
-  const avgMargin = sumTotalSales > 0 ? Math.round((sumNetProfit / sumTotalSales) * 100) : 0;
+  // Calculate Column Totals (Memoized O(N) single-pass)
+  const {
+    sumTotalSales,
+    sumProductSales,
+    sumBuyerShipping,
+    sumFees,
+    sumSettlement,
+    sumTotalCost,
+    sumPackaging,
+    sumActualShipping,
+    sumGrossProfit,
+    sumVatDeducted,
+    sumIncomeTax,
+    sumNetProfit,
+    avgMargin,
+  } = useMemo(() => {
+    let sales = 0, productSales = 0, buyerShipping = 0, fees = 0, settlement = 0;
+    let cost = 0, packaging = 0, actualShipping = 0, grossProfit = 0;
+    let vatDeducted = 0, incomeTax = 0, netProfit = 0;
+
+    for (let i = 0; i < filteredOrders.length; i++) {
+      const o = filteredOrders[i];
+      sales += (o.totalPrice + o.buyerShippingFee);
+      productSales += o.totalPrice;
+      buyerShipping += o.buyerShippingFee;
+      fees += (o.feeAmount + (o.knowledgeShoppingFee || 0));
+      settlement += o.settlementAmount;
+      cost += o.totalCost;
+      packaging += o.packagingCost;
+      actualShipping += o.actualShippingCost;
+      grossProfit += o.grossProfit;
+      vatDeducted += o.vatDeductedProfit;
+      incomeTax += o.incomeTax;
+      netProfit += o.netProfit;
+    }
+
+    const margin = sales > 0 ? Math.round((netProfit / sales) * 100) : 0;
+
+    return {
+      sumTotalSales: sales,
+      sumProductSales: productSales,
+      sumBuyerShipping: buyerShipping,
+      sumFees: fees,
+      sumSettlement: settlement,
+      sumTotalCost: cost,
+      sumPackaging: packaging,
+      sumActualShipping: actualShipping,
+      sumGrossProfit: grossProfit,
+      sumVatDeducted: vatDeducted,
+      sumIncomeTax: incomeTax,
+      sumNetProfit: netProfit,
+      avgMargin: margin,
+    };
+  }, [filteredOrders]);
 
   // Cell Edit Handlers
   const handleStartEdit = (order: OrderItem, field: string, currentValue: any) => {
@@ -445,18 +593,16 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                 <tr>
                   <td className="py-2.5 px-4">[{platformConfig.shortName}] 기간 합계</td>
                   <td className="py-2.5 px-3 text-center">{platformOrders.length}건</td>
-                  <td className="py-2.5 px-3 text-right text-slate-900">{formatKRW(platformOrders.reduce((s, o) => s + o.totalPrice + o.buyerShippingFee, 0), true)}</td>
-                  <td className="py-2.5 px-3 text-right text-emerald-800">{formatKRW(platformOrders.reduce((s, o) => s + o.settlementAmount, 0), true)}</td>
-                  <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(platformOrders.reduce((s, o) => s + o.totalCost, 0), true)}</td>
-                  <td className="py-2.5 px-3 text-right text-rose-700">-{formatKRW(platformOrders.reduce((s, o) => s + o.feeAmount + (o.knowledgeShoppingFee || 0), 0), true)}</td>
-                  <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(platformOrders.reduce((s, o) => s + o.packagingCost + o.actualShippingCost, 0), true)}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-900">{formatKRW(platformTotals.sales, true)}</td>
+                  <td className="py-2.5 px-3 text-right text-emerald-800">{formatKRW(platformTotals.settlement, true)}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(platformTotals.cost, true)}</td>
+                  <td className="py-2.5 px-3 text-right text-rose-700">-{formatKRW(platformTotals.fees, true)}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(platformTotals.shippingPkg, true)}</td>
                   <td className="py-2.5 px-4 text-right text-indigo-900 text-sm bg-indigo-100/50">
-                    {formatKRW(platformOrders.reduce((s, o) => s + o.netProfit, 0), true)}
+                    {formatKRW(platformTotals.netProfit, true)}
                   </td>
                   <td className="py-2.5 px-3 text-center text-indigo-900">
-                    {platformOrders.reduce((s, o) => s + o.totalPrice + o.buyerShippingFee, 0) > 0
-                      ? Math.round((platformOrders.reduce((s, o) => s + o.netProfit, 0) / platformOrders.reduce((s, o) => s + o.totalPrice + o.buyerShippingFee, 0)) * 100)
-                      : 0}%
+                    {platformTotals.margin}%
                   </td>
                 </tr>
               </tfoot>
@@ -472,41 +618,87 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
           <input
             id="input-search-table"
             type="text"
+            inputMode="text"
             lang="ko"
             autoCapitalize="off"
             autoCorrect="off"
             style={{ imeMode: 'active' as any }}
-            placeholder="상품명, 옵션명, 수취인, 주문번호 검색..."
+            placeholder="상품명, 옵션명, 수취인, 주문번호 검색 (영타 입력 시 한글 자동 변환)..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder-slate-400 font-medium"
           />
+          {korSearchTerm !== searchTerm.trim() && korSearchTerm.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm(korSearchTerm)}
+              className="absolute right-2 top-1.5 text-[11px] font-bold px-2 py-0.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
+              title="클릭 시 한글 글자로 즉시 변경합니다"
+            >
+              🔤 한글 변환 적용: {korSearchTerm}
+            </button>
+          )}
         </div>
-        <div className="text-xs text-slate-500 font-medium">
-          셀(원가, 수량, 판매가 등)을 클릭하면 즉시 수정 및 자동 재계산됩니다.
+        <label className="flex items-center space-x-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-1 rounded-lg cursor-pointer whitespace-nowrap shrink-0">
+          <input
+            type="checkbox"
+            checked={autoConvertEng}
+            onChange={(e) => setAutoConvertEng(e.target.checked)}
+            className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+          />
+          <span>영타 실시간 한글변환</span>
+        </label>
+        <div className="flex items-center space-x-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleScrollTop}
+            className="inline-flex items-center px-2 py-1.5 rounded-lg text-xs font-bold bg-white text-indigo-700 border border-slate-300 hover:bg-indigo-50 shadow-xs cursor-pointer"
+            title="테이블 맨 위로 스크롤합니다"
+          >
+            ▲ 맨 위로
+          </button>
+          <button
+            type="button"
+            onClick={handleScrollBottom}
+            className="inline-flex items-center px-2 py-1.5 rounded-lg text-xs font-bold bg-white text-indigo-700 border border-slate-300 hover:bg-indigo-50 shadow-xs cursor-pointer"
+            title="테이블 맨 아래로 스크롤합니다"
+          >
+            ▼ 맨 아래로
+          </button>
+          <button
+            type="button"
+            onClick={handleScrollLeft}
+            className="inline-flex items-center px-2 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-xs cursor-pointer"
+            title="테이블을 좌측으로 스크롤합니다"
+          >
+            ◀ 좌측
+          </button>
+          <button
+            type="button"
+            onClick={handleScrollRight}
+            className="inline-flex items-center px-2 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-xs cursor-pointer"
+            title="테이블을 우측으로 스크롤합니다"
+          >
+            우측 ▶
+          </button>
         </div>
       </div>
 
       {/* Main Formatted Settlement Table (Exact Layout matching User's Screenshots) */}
       <div className="bg-white rounded-xl border border-slate-300 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto max-h-[620px] scrollbar-thin">
+        <div ref={tableContainerRef} className="overflow-auto max-h-[calc(100vh-260px)] min-h-[350px] scrollbar-thin">
           <table className="min-w-full text-xs text-left border-collapse">
             <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10 border-b border-slate-300 shadow-xs">
               <tr className="divide-x divide-slate-300">
-                <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100 text-amber-900 sticky left-0 top-0 z-30 shadow-2xs">날짜</th>
-                <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100 text-amber-900 sticky left-[75px] top-0 z-30 shadow-2xs">주문번호</th>
-                {platform === 'smartstore' && (
-                  <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100 text-amber-900 sticky left-[155px] top-0 z-30 shadow-2xs">상품번호</th>
-                )}
+                <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100 text-amber-900 border-r border-slate-300 w-[95px] min-w-[95px] max-w-[95px]" style={{ position: 'sticky', left: 0, top: 0, zIndex: 40 }}>날짜</th>
                 <th 
                   onClick={() => handleSortToggle('productName')}
-                  className={`py-2.5 px-4 min-w-[320px] max-w-[560px] bg-amber-200 text-amber-950 sticky top-0 z-30 ${
-                    platform === 'smartstore' ? 'left-[245px]' : 'left-[155px]'
-                  } border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)] cursor-pointer hover:bg-amber-300 transition-colors`}
+                  className="py-2.5 px-4 w-[260px] min-w-[260px] max-w-[260px] bg-amber-200 text-amber-950 cursor-pointer hover:bg-amber-300 border-r border-slate-300 shadow-2xs"
+                  style={{ position: 'sticky', left: 95, top: 0, zIndex: 40 }}
                   title="클릭하여 상품명 정렬"
                 >
                   <div className="flex items-center justify-between">
-                    <span>상품명</span>
+                    <span>상품명 📌</span>
                     {sortField === 'productName' ? (
                       <span className="text-xs font-bold">{sortOrder === 'desc' ? '▼' : '▲'}</span>
                     ) : (
@@ -514,9 +706,13 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                     )}
                   </div>
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap min-w-[140px] bg-amber-100/70 text-amber-900">
-                  옵션명
+                <th className="py-2.5 px-3 whitespace-nowrap w-[150px] min-w-[150px] max-w-[150px] bg-amber-100 text-amber-950 border-r-2 border-slate-400 shadow-sm" style={{ position: 'sticky', left: 355, top: 0, zIndex: 40 }}>
+                  옵션명 📌
                 </th>
+                <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100/70 text-amber-900">주문번호</th>
+                {platform === 'smartstore' && (
+                  <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100/70 text-amber-900">상품번호</th>
+                )}
                 <th className="py-2.5 px-2.5 whitespace-nowrap text-center bg-amber-100/70 text-amber-900">
                   수량
                 </th>
@@ -607,19 +803,20 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                sortedOrders.map((ord, idx) => {
+                paginatedOrders.map((ord, idx) => {
                   const isBundleSub = ord.isBundleShipping && ord.actualShippingCost === 0;
                   const cellBg = !ord.isCostMatched ? 'bg-rose-50' : idx % 2 === 1 ? 'bg-slate-50' : 'bg-white';
 
                   return (
                     <tr
                       key={ord.id}
-                      className={`divide-x divide-slate-200 hover:bg-amber-50/40 transition-colors ${cellBg}`}
+                      className={`divide-x divide-slate-200 hover:bg-amber-50/50 ${cellBg}`}
                     >
                       {/* 1. Date */}
                       <td
                         onClick={() => handleStartEdit(ord, 'orderDate', ord.orderDate)}
-                        className={`py-2 px-3 whitespace-nowrap font-medium text-slate-900 sticky left-0 z-20 hover:bg-yellow-50 cursor-pointer ${cellBg}`}
+                        className={`py-2 px-3 whitespace-nowrap font-medium text-slate-900 hover:bg-yellow-50 cursor-pointer border-r border-slate-300 w-[95px] min-w-[95px] max-w-[95px] ${cellBg}`}
+                        style={{ position: 'sticky', left: 0, zIndex: 20 }}
                         title="클릭하여 날짜 수정"
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'orderDate' ? (
@@ -630,31 +827,18 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             onBlur={() => handleSaveEdit(ord)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(ord)}
                             autoFocus
-                            className="w-28 text-xs p-1 border rounded bg-white text-slate-900 font-bold"
+                            className="w-24 text-xs p-1 border rounded bg-white text-slate-900 font-bold"
                           />
                         ) : (
                           ord.orderDate
                         )}
                       </td>
 
-                      {/* 2. Order Number */}
-                      <td className={`py-2 px-3 whitespace-nowrap font-mono text-[11px] text-slate-600 sticky left-[75px] z-20 ${cellBg}`}>
-                        {ord.orderNumber}
-                      </td>
-
-                      {/* 3. Product Number (for smartstore) */}
-                      {platform === 'smartstore' && (
-                        <td className={`py-2 px-3 whitespace-nowrap font-mono text-[11px] text-slate-500 sticky left-[155px] z-20 ${cellBg}`}>
-                          {ord.productNumber || '-'}
-                        </td>
-                      )}
-
-                      {/* 4. Product Name */}
+                      {/* 2. Product Name (Sticky) */}
                       <td
                         onClick={() => handleStartEdit(ord, 'productName', ord.productName)}
-                        className={`py-2 px-4 text-slate-900 min-w-[320px] max-w-[560px] sticky ${
-                          platform === 'smartstore' ? 'left-[245px]' : 'left-[155px]'
-                        } z-20 border-r-2 border-slate-300 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)] hover:bg-yellow-50 cursor-pointer ${cellBg}`}
+                        className={`py-2 px-3 text-slate-900 w-[260px] min-w-[260px] max-w-[260px] border-r border-slate-300 hover:bg-yellow-50 cursor-pointer ${cellBg}`}
+                        style={{ position: 'sticky', left: 95, zIndex: 20 }}
                         title={ord.productName}
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'productName' ? (
@@ -677,8 +861,11 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                                 </span>
                               )}
                             </div>
-                            {/* Highlighted Net Profit Badge directly under Product Name */}
-                            <div className="mt-1 flex items-center space-x-1">
+                            {/* Option & Net Profit Badges directly under Product Name */}
+                            <div className="mt-1 flex items-center space-x-1 flex-wrap gap-y-1">
+                              <span className="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-200 text-[10px] shrink-0">
+                                옵션: {ord.optionName || '기본'}
+                              </span>
                               <span className={`inline-flex items-center text-[10.5px] font-black px-2 py-0.5 rounded-full border shadow-2xs ${
                                 ord.netProfit > 0
                                   ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
@@ -693,10 +880,11 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                         )}
                       </td>
 
-                      {/* 5. Option Name */}
+                      {/* 3. Option Name (Sticky) */}
                       <td
                         onClick={() => handleStartEdit(ord, 'optionName', ord.optionName)}
-                        className="py-2 px-3 text-slate-600 min-w-[140px] max-w-[280px] break-words hover:bg-yellow-50 cursor-pointer"
+                        className={`py-2 px-3 font-semibold text-slate-800 w-[150px] min-w-[150px] max-w-[150px] break-words hover:bg-yellow-50 cursor-pointer border-r-2 border-slate-400 shadow-xs ${cellBg}`}
+                        style={{ position: 'sticky', left: 355, zIndex: 20 }}
                         title={ord.optionName}
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'optionName' ? (
@@ -707,12 +895,26 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             onBlur={() => handleSaveEdit(ord)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(ord)}
                             autoFocus
-                            className="w-full text-xs p-1 border rounded bg-white"
+                            className="w-full text-xs p-1 border rounded bg-white font-bold"
                           />
                         ) : (
-                          ord.optionName || '-'
+                          <span className="px-2 py-0.5 rounded bg-slate-100/90 text-slate-800 border border-slate-200 font-medium text-[11px]">
+                            {ord.optionName || '기본'}
+                          </span>
                         )}
                       </td>
+
+                      {/* 4. Order Number */}
+                      <td className={`py-2 px-3 whitespace-nowrap font-mono text-[11px] text-slate-600 ${cellBg}`}>
+                        {ord.orderNumber}
+                      </td>
+
+                      {/* 5. Product Number (for smartstore) */}
+                      {platform === 'smartstore' && (
+                        <td className={`py-2 px-3 whitespace-nowrap font-mono text-[11px] text-slate-500 ${cellBg}`}>
+                          {ord.productNumber || '-'}
+                        </td>
+                      )}
 
                       {/* 6. Quantity */}
                       <td
@@ -895,7 +1097,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                               e.stopPropagation();
                               onOpenQuickCostModal(ord);
                             }}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-500 text-white animate-pulse"
+                            className="px-2 py-0.5 rounded text-[10.5px] font-extrabold bg-rose-600 text-white hover:bg-rose-700 shadow-2xs cursor-pointer"
                           >
                             원가입력
                           </button>
@@ -1004,11 +1206,11 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
             {filteredOrders.length > 0 && (
               <tfoot className="bg-amber-200/90 text-slate-950 font-black border-t-2 border-slate-400 sticky bottom-0 z-10 shadow-md">
                 <tr className="divide-x divide-slate-400">
-                  <td className="py-3 px-3">합계 ({filteredOrders.length}건)</td>
+                  <td className="py-3 px-3 bg-amber-200 border-r border-slate-400 w-[95px] min-w-[95px] max-w-[95px]" style={{ position: 'sticky', left: 0, zIndex: 30 }}>합계 ({filteredOrders.length}건)</td>
+                  <td className="py-3 px-4 font-extrabold text-slate-900 bg-amber-200 border-r border-slate-400 w-[260px] min-w-[260px] max-w-[260px]" style={{ position: 'sticky', left: 95, zIndex: 30 }}>전체 품목 합계</td>
+                  <td className="py-3 px-3 bg-amber-200 border-r-2 border-slate-400 w-[150px] min-w-[150px] max-w-[150px] shadow-xs" style={{ position: 'sticky', left: 355, zIndex: 30 }}>-</td>
                   <td className="py-3 px-3">-</td>
                   {platform === 'smartstore' && <td className="py-3 px-3">-</td>}
-                  <td className="py-3 px-4 font-extrabold text-slate-900">전체 품목 합계</td>
-                  <td className="py-3 px-3">-</td>
                   <td className="py-3 px-2.5 text-center">
                     {filteredOrders.reduce((s, o) => s + o.quantity, 0)}
                   </td>
@@ -1044,6 +1246,58 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
               </tfoot>
             )}
           </table>
+        </div>
+        {/* Pagination & Page Size Control Bar */}
+        <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-300 flex items-center justify-between text-xs font-medium">
+          <div className="flex items-center space-x-3">
+            <span className="text-slate-600 font-medium">
+              {pageSize > 0 ? (
+                <>총 <strong>{sortedOrders.length}</strong>개 주문 중 <strong>{sortedOrders.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} - {Math.min(currentPage * pageSize, sortedOrders.length)}</strong>개 표시 중</>
+              ) : (
+                <>총 <strong>{sortedOrders.length}</strong>개 주문 전체 표시 중</>
+              )}
+            </span>
+            <div className="flex items-center space-x-1">
+              <span className="text-slate-500">페이지 당:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value={30}>30개씩</option>
+                <option value={50}>50개씩</option>
+                <option value={100}>100개씩</option>
+                <option value={0}>전체보기</option>
+              </select>
+            </div>
+          </div>
+
+          {pageSize > 0 && totalPages > 1 && (
+            <div className="flex items-center space-x-1.5">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="px-2.5 py-1 rounded border border-slate-300 bg-white font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 cursor-pointer shadow-2xs"
+              >
+                ◀ 이전
+              </button>
+              <span className="px-2 font-bold text-indigo-700">
+                {currentPage} / {totalPages} 페이지
+              </span>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="px-2.5 py-1 rounded border border-slate-300 bg-white font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 cursor-pointer shadow-2xs"
+              >
+                다음 ▶
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { 
   Check, 
   Coins, 
@@ -16,7 +16,7 @@ import {
   UploadCloud 
 } from 'lucide-react';
 import { CostItem } from '../types';
-import { formatKRW } from '../utils/calculator';
+import { engToKor, formatKRW } from '../utils/calculator';
 import { exportCostMasterToExcel, parseCostMasterExcel } from '../utils/excelParser';
 
 interface CostMasterViewProps {
@@ -37,6 +37,7 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
   onApplyCostsToOrders,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [autoConvertEng, setAutoConvertEng] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCostValue, setEditCostValue] = useState<string>('');
@@ -55,22 +56,81 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
   const [pasteText, setPasteText] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleScrollTop = () => {
+    tableContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleScrollBottom = () => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTo({ top: tableContainerRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  };
+
+  const handleSearchChange = (val: string) => {
+    if (autoConvertEng && /[a-zA-Z]/.test(val)) {
+      setSearchTerm(engToKor(val));
+    } else {
+      setSearchTerm(val);
+    }
+  };
 
   // Categories list
   const categories = Array.from(new Set(costItems.map((c) => c.category || '기타'))).filter(Boolean);
 
-  // Filtered cost items
-  const filteredItems = costItems.filter((item) => {
-    const matchSearch =
-      !searchTerm.trim() ||
-      item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.optionName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.supplier && item.supplier.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (item.memo && item.memo.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Filtered cost items with English-to-Korean auto translation (Memoized)
+  const korSearchTerm = useMemo(() => engToKor(searchTerm.trim()), [searchTerm]);
+  const korSearchTermBase = useMemo(() => korSearchTerm.replace(/[ㄱ-ㅎ]+$/g, ''), [korSearchTerm]);
 
-    const matchCat = selectedCategory === 'all' || (item.category || '기타') === selectedCategory;
-    return matchSearch && matchCat;
-  });
+  const filteredItems = useMemo(() => {
+    return costItems.filter((item) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const korTerm = korSearchTerm.toLowerCase();
+      const korBase = korSearchTermBase.toLowerCase();
+
+      const matchRaw =
+        item.productName.toLowerCase().includes(term) ||
+        item.optionName.toLowerCase().includes(term) ||
+        (item.supplier && item.supplier.toLowerCase().includes(term)) ||
+        (item.memo && item.memo.toLowerCase().includes(term));
+
+      const matchKor =
+        korTerm !== term &&
+        (item.productName.toLowerCase().includes(korTerm) ||
+          item.optionName.toLowerCase().includes(korTerm) ||
+          (item.supplier && item.supplier.toLowerCase().includes(korTerm)) ||
+          (item.memo && item.memo.toLowerCase().includes(korTerm)));
+
+      const matchKorBase =
+        korBase &&
+        korBase.length >= 2 &&
+        (item.productName.toLowerCase().includes(korBase) ||
+          item.optionName.toLowerCase().includes(korBase) ||
+          (item.supplier && item.supplier.toLowerCase().includes(korBase)) ||
+          (item.memo && item.memo.toLowerCase().includes(korBase)));
+
+      const matchSearch = matchRaw || matchKor || matchKorBase;
+      const matchCat = selectedCategory === 'all' || (item.category || '기타') === selectedCategory;
+      return matchSearch && matchCat;
+    });
+  }, [costItems, searchTerm, korSearchTerm, korSearchTermBase, selectedCategory]);
+
+  // Pagination state (Dynamic page size for smooth rendering)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+
+  const totalPages = useMemo(() => {
+    if (pageSize === 0) return 1;
+    return Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  }, [filteredItems.length, pageSize]);
+
+  const paginatedItems = useMemo(() => {
+    if (pageSize === 0) return filteredItems;
+    const start = (currentPage - 1) * pageSize;
+    return filteredItems.slice(start, start + pageSize);
+  }, [filteredItems, currentPage, pageSize]);
 
   // Handle Quick Cost Edit
   const handleStartCostEdit = (item: CostItem) => {
@@ -272,15 +332,53 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
             <input
               id="input-search-cost"
               type="text"
+              inputMode="text"
               lang="ko"
               autoCapitalize="off"
               autoCorrect="off"
               style={{ imeMode: 'active' as any }}
-              placeholder="상품명, 옵션명, 공급처, 메모 검색..."
+              placeholder="상품명, 옵션명, 공급처, 메모 검색 (영타 입력 시 한글 자동 변환)..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-9 pr-3 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium"
             />
+            {korSearchTerm !== searchTerm.trim() && korSearchTerm.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm(korSearchTerm)}
+                className="absolute right-2 top-1.5 text-[11px] font-bold px-2 py-0.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
+                title="클릭 시 한글 글자로 즉시 변경합니다"
+              >
+                🔤 한글 변환 적용: {korSearchTerm}
+              </button>
+            )}
+          </div>
+          <label className="flex items-center space-x-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-1 rounded-lg cursor-pointer whitespace-nowrap shrink-0">
+            <input
+              type="checkbox"
+              checked={autoConvertEng}
+              onChange={(e) => setAutoConvertEng(e.target.checked)}
+              className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+            />
+            <span>영타 실시간 한글변환</span>
+          </label>
+          <div className="flex items-center space-x-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleScrollTop}
+              className="inline-flex items-center px-2 py-1.5 rounded-lg text-xs font-bold bg-white text-indigo-700 border border-slate-300 hover:bg-indigo-50 shadow-xs cursor-pointer"
+              title="테이블 맨 위로 스크롤합니다"
+            >
+              ▲ 맨 위로
+            </button>
+            <button
+              type="button"
+              onClick={handleScrollBottom}
+              className="inline-flex items-center px-2 py-1.5 rounded-lg text-xs font-bold bg-white text-indigo-700 border border-slate-300 hover:bg-indigo-50 shadow-xs cursor-pointer"
+              title="테이블 맨 아래로 스크롤합니다"
+            >
+              ▼ 맨 아래로
+            </button>
           </div>
         </div>
 
@@ -317,12 +415,12 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
 
       {/* Cost Master Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto max-h-[600px] scrollbar-thin">
+        <div ref={tableContainerRef} className="overflow-auto max-h-[calc(100vh-280px)] min-h-[350px] scrollbar-thin">
           <table className="min-w-full text-xs text-left">
             <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10 border-b border-slate-200">
               <tr>
-                <th className="py-2.5 px-4">상품명</th>
-                <th className="py-2.5 px-3">옵션명</th>
+                <th className="py-2.5 px-4 bg-slate-100 w-[260px] min-w-[260px] max-w-[260px] border-r border-slate-300" style={{ position: 'sticky', left: 0, top: 0, zIndex: 40 }}>상품명 📌</th>
+                <th className="py-2.5 px-3 bg-slate-100 w-[150px] min-w-[150px] max-w-[150px] border-r-2 border-slate-300 shadow-xs" style={{ position: 'sticky', left: 260, top: 0, zIndex: 40 }}>옵션명 📌</th>
                 <th className="py-2.5 px-3 text-right bg-rose-100 text-rose-950 font-extrabold min-w-[130px]">
                   매입원가 (단가)
                 </th>
@@ -341,21 +439,21 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item, idx) => (
-                  <tr
-                    key={item.id}
-                    className={`hover:bg-indigo-50/40 transition-colors ${
-                      idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'
-                    }`}
-                  >
-                    <td className="py-2.5 px-4 font-semibold text-slate-900 max-w-[320px]">
-                      {item.productName}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-600 max-w-[200px]">
-                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[11px]">
-                        {item.optionName}
-                      </span>
-                    </td>
+                paginatedItems.map((item, idx) => {
+                  const cellBg = idx % 2 === 1 ? 'bg-slate-50' : 'bg-white';
+                  return (
+                    <tr
+                      key={item.id}
+                      className={`hover:bg-indigo-50/50 ${cellBg}`}
+                    >
+                      <td className={`py-2.5 px-4 font-semibold text-slate-900 w-[260px] min-w-[260px] max-w-[260px] border-r border-slate-300 ${cellBg}`} style={{ position: 'sticky', left: 0, zIndex: 20 }}>
+                        {item.productName}
+                      </td>
+                      <td className={`py-2.5 px-3 text-slate-600 w-[150px] min-w-[150px] max-w-[150px] border-r-2 border-slate-300 shadow-2xs ${cellBg}`} style={{ position: 'sticky', left: 260, zIndex: 20 }}>
+                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[11px]">
+                          {item.optionName}
+                        </span>
+                      </td>
                     {/* Editable Cost Cell */}
                     <td
                       onClick={() => handleStartCostEdit(item)}
@@ -404,10 +502,63 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
                       </button>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })
+            )}
             </tbody>
           </table>
+        </div>
+        {/* Pagination & Page Size Control Bar */}
+        <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs font-medium">
+          <div className="flex items-center space-x-3">
+            <span className="text-slate-600 font-medium">
+              {pageSize > 0 ? (
+                <>총 <strong>{filteredItems.length}</strong>개 품목 중 <strong>{filteredItems.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} - {Math.min(currentPage * pageSize, filteredItems.length)}</strong>개 표시 중</>
+              ) : (
+                <>총 <strong>{filteredItems.length}</strong>개 품목 전체 표시 중</>
+              )}
+            </span>
+            <div className="flex items-center space-x-1">
+              <span className="text-slate-500">페이지 당:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value={30}>30개씩</option>
+                <option value={50}>50개씩</option>
+                <option value={100}>100개씩</option>
+                <option value={0}>전체보기</option>
+              </select>
+            </div>
+          </div>
+
+          {pageSize > 0 && totalPages > 1 && (
+            <div className="flex items-center space-x-1.5">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="px-2.5 py-1 rounded border border-slate-300 bg-white font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 cursor-pointer shadow-2xs"
+              >
+                ◀ 이전
+              </button>
+              <span className="px-2 font-bold text-indigo-700">
+                {currentPage} / {totalPages} 페이지
+              </span>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="px-2.5 py-1 rounded border border-slate-300 bg-white font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 cursor-pointer shadow-2xs"
+              >
+                다음 ▶
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

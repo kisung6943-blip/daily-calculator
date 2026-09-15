@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { CostMasterView } from './components/CostMasterView';
 import { DashboardView } from './components/DashboardView';
 import { ExcelUploadModal } from './components/ExcelUploadModal';
@@ -8,7 +8,7 @@ import { QuickCostModal } from './components/QuickCostModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DEFAULT_SETTINGS, INITIAL_COST_ITEMS, INITIAL_ORDERS, PLATFORMS } from './data/initialData';
 import { CostItem, OrderItem, PlatformType, SettlementSettings } from './types';
-import { isSameOption, normalizeText, processAllOrders, recalculateOrder } from './utils/calculator';
+import { deduplicateOrders, isSameOption, normalizeText, processAllOrders, recalculateOrder } from './utils/calculator';
 import { exportOrdersToExcel } from './utils/excelParser';
 
 const STORAGE_ORDERS_KEY = 'seller_settlement_orders_v1';
@@ -47,7 +47,7 @@ export default function App() {
       const savedCosts = localStorage.getItem(STORAGE_COSTS_KEY);
       if (savedCosts) rawCosts = JSON.parse(savedCosts);
     } catch (e) {}
-    return processAllOrders(rawOrders, rawCosts, { ...DEFAULT_SETTINGS, defaultIncomeTaxRate: 10 });
+    return processAllOrders(deduplicateOrders(rawOrders), rawCosts, { ...DEFAULT_SETTINGS, defaultIncomeTaxRate: 10 });
   });
 
   const [costItems, setCostItems] = useState<CostItem[]>(() => {
@@ -88,28 +88,42 @@ export default function App() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [quickCostTargetOrder, setQuickCostTargetOrder] = useState<OrderItem | null>(null);
 
-  // Force recalculation of all orders on settings change
+  // Force recalculation of all orders on settings change (skips initial mount)
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     setOrders((prev) => processAllOrders(prev, costItems, settings));
   }, [settings]);
 
-  // Sync to localStorage
+  // Sync to localStorage with debounce to avoid blocking main UI thread on cell edits
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_ORDERS_KEY, JSON.stringify(orders));
-    } catch (e) {}
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_ORDERS_KEY, JSON.stringify(orders));
+      } catch (e) {}
+    }, 300);
+    return () => clearTimeout(timer);
   }, [orders]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_COSTS_KEY, JSON.stringify(costItems));
-    } catch (e) {}
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_COSTS_KEY, JSON.stringify(costItems));
+      } catch (e) {}
+    }, 300);
+    return () => clearTimeout(timer);
   }, [costItems]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(settings));
-    } catch (e) {}
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(settings));
+      } catch (e) {}
+    }, 300);
+    return () => clearTimeout(timer);
   }, [settings]);
 
   // Available unique dates
@@ -318,7 +332,8 @@ export default function App() {
       // replace_all: wipe all previous orders
       mergedOrders = newOrders;
     }
-    const processed = processAllOrders(mergedOrders, costItems, settings);
+    const deduped = deduplicateOrders(mergedOrders);
+    const processed = processAllOrders(deduped, costItems, settings);
     setOrders(processed);
     setCurrentTab('dashboard');
   };

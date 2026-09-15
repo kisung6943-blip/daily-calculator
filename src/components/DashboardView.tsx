@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   AlertCircle, 
   ArrowUpRight, 
@@ -32,111 +32,261 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onSelectPlatform,
   onOpenQuickCostModal,
 }) => {
-  // Filter orders by date if specific date is selected
-  const filteredOrders = selectedDate === 'all' ? orders : orders.filter((o) => o.orderDate === selectedDate);
+  // Filter orders by date if specific date is selected (Memoized)
+  const filteredOrders = useMemo(() => {
+    return selectedDate === 'all' ? orders : orders.filter((o) => o.orderDate === selectedDate);
+  }, [orders, selectedDate]);
 
-  // Compute Total Metrics
-  const totalSales = filteredOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
-  const totalProductSales = filteredOrders.reduce((sum, o) => sum + o.totalPrice, 0);
-  const totalBuyerShipping = filteredOrders.reduce((sum, o) => sum + o.buyerShippingFee, 0);
-  const totalSettlement = filteredOrders.reduce((sum, o) => sum + o.settlementAmount, 0);
-  const totalFees = filteredOrders.reduce((sum, o) => sum + o.feeAmount + (o.knowledgeShoppingFee || 0), 0);
-  const totalCost = filteredOrders.reduce((sum, o) => sum + o.totalCost, 0);
-  const totalPackaging = filteredOrders.reduce((sum, o) => sum + o.packagingCost, 0);
-  const totalActualShipping = filteredOrders.reduce((sum, o) => sum + o.actualShippingCost, 0);
-  const totalGrossProfit = filteredOrders.reduce((sum, o) => sum + o.grossProfit, 0);
-  const totalVatDeducted = filteredOrders.reduce((sum, o) => sum + o.vatDeductedProfit, 0);
-  const totalVat = filteredOrders.reduce((sum, o) => sum + o.vatAmount, 0);
-  const totalIncomeTax = filteredOrders.reduce((sum, o) => sum + o.incomeTax, 0);
-  const totalNetProfit = filteredOrders.reduce((sum, o) => sum + o.netProfit, 0);
-  const avgMargin = totalSales > 0 ? Math.round((totalNetProfit / totalSales) * 100) : 0;
+  // Compute Total Metrics (Memoized O(N) single-pass)
+  const metrics = useMemo(() => {
+    let sales = 0, productSales = 0, buyerShipping = 0, settlement = 0, fees = 0;
+    let cost = 0, packaging = 0, actualShipping = 0, grossProfit = 0;
+    let vatDeducted = 0, vat = 0, incomeTax = 0, netProfit = 0;
+    let savedBundleCount = 0;
 
-  // Unmatched cost items
-  const unmatchedOrders = filteredOrders.filter((o) => !o.isCostMatched || o.unitCost === 0);
+    const unmatchedOrders: OrderItem[] = [];
+    const bundleOrders: OrderItem[] = [];
 
-  // Bundle delivery stats
-  const bundleOrders = filteredOrders.filter((o) => o.isBundleShipping);
-  const bundleSavedShipping = filteredOrders.filter((o) => o.isBundleShipping && o.actualShippingCost === 0).length * settings.defaultActualShippingCost;
+    for (let i = 0; i < filteredOrders.length; i++) {
+      const o = filteredOrders[i];
+      sales += (o.totalPrice + o.buyerShippingFee);
+      productSales += o.totalPrice;
+      buyerShipping += o.buyerShippingFee;
+      settlement += o.settlementAmount;
+      fees += (o.feeAmount + (o.knowledgeShoppingFee || 0));
+      cost += o.totalCost;
+      packaging += o.packagingCost;
+      actualShipping += o.actualShippingCost;
+      grossProfit += o.grossProfit;
+      vatDeducted += o.vatDeductedProfit;
+      vat += o.vatAmount;
+      incomeTax += o.incomeTax;
+      netProfit += o.netProfit;
 
-  // Platform Breakdown
-  const platformStats = Object.values(PLATFORMS).map((p) => {
-    const pOrders = filteredOrders.filter((o) => o.platform === p.id);
-    const pSales = pOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
-    const pSettlement = pOrders.reduce((sum, o) => sum + o.settlementAmount, 0);
-    const pCost = pOrders.reduce((sum, o) => sum + o.totalCost, 0);
-    const pNetProfit = pOrders.reduce((sum, o) => sum + o.netProfit, 0);
-    const pMargin = pSales > 0 ? Math.round((pNetProfit / pSales) * 100) : 0;
+      if (!o.isCostMatched || o.unitCost === 0) unmatchedOrders.push(o);
+      if (o.isBundleShipping) {
+        bundleOrders.push(o);
+        if (o.actualShippingCost === 0) savedBundleCount++;
+      }
+    }
 
-    return {
-      config: p,
-      orderCount: pOrders.length,
-      sales: pSales,
-      settlement: pSettlement,
-      cost: pCost,
-      netProfit: pNetProfit,
-      marginRate: pMargin,
-    };
-  });
-
-  // Daily Comparison Summary
-  const dates = Array.from(new Set(orders.map((o) => o.orderDate))) as string[];
-  const dailySummaries: DailySummary[] = dates.sort().reverse().map((date) => {
-    const dOrders = orders.filter((o) => o.orderDate === date);
-    const dSales = dOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
-    const dProductSales = dOrders.reduce((sum, o) => sum + o.totalPrice, 0);
-    const dShipping = dOrders.reduce((sum, o) => sum + o.buyerShippingFee, 0);
-    const dFees = dOrders.reduce((sum, o) => sum + o.feeAmount + (o.knowledgeShoppingFee || 0), 0);
-    const dSettlement = dOrders.reduce((sum, o) => sum + o.settlementAmount, 0);
-    const dCost = dOrders.reduce((sum, o) => sum + o.totalCost, 0);
-    const dPack = dOrders.reduce((sum, o) => sum + o.packagingCost, 0);
-    const dActualShip = dOrders.reduce((sum, o) => sum + o.actualShippingCost, 0);
-    const dGross = dOrders.reduce((sum, o) => sum + o.grossProfit, 0);
-    const dVat = dOrders.reduce((sum, o) => sum + o.vatAmount, 0);
-    const dTax = dOrders.reduce((sum, o) => sum + o.incomeTax, 0);
-    const dNet = dOrders.reduce((sum, o) => sum + o.netProfit, 0);
-    const dMargin = dSales > 0 ? Math.round((dNet / dSales) * 100) : 0;
+    const margin = sales > 0 ? Math.round((netProfit / sales) * 100) : 0;
+    const bundleSavedShipping = savedBundleCount * settings.defaultActualShippingCost;
 
     return {
-      date,
-      orderCount: dOrders.length,
-      totalSales: dSales,
-      productSales: dProductSales,
-      shippingRevenue: dShipping,
-      feeTotal: dFees,
-      settlementTotal: dSettlement,
-      costTotal: dCost,
-      packagingTotal: dPack,
-      actualShippingTotal: dActualShip,
-      grossProfitTotal: dGross,
-      vatTotal: dVat,
-      incomeTaxTotal: dTax,
-      netProfitTotal: dNet,
-      marginRate: dMargin,
+      totalSales: sales,
+      totalProductSales: productSales,
+      totalBuyerShipping: buyerShipping,
+      totalSettlement: settlement,
+      totalFees: fees,
+      totalCost: cost,
+      totalPackaging: packaging,
+      totalActualShipping: actualShipping,
+      totalGrossProfit: grossProfit,
+      totalVatDeducted: vatDeducted,
+      totalVat: vat,
+      totalIncomeTax: incomeTax,
+      totalNetProfit: netProfit,
+      avgMargin: margin,
+      unmatchedOrders,
+      bundleOrders,
+      bundleSavedShipping,
     };
-  });
+  }, [filteredOrders, settings.defaultActualShippingCost]);
 
-  // Daily Sales per Site (Platform x Date Matrix)
-  const platformList = Object.values(PLATFORMS);
-  const dailyPlatformMatrix = dates.sort().reverse().map((date) => {
-    const dOrders = orders.filter((o) => o.orderDate === date);
-    const siteSalesMap: Record<string, { sales: number; orderCount: number; netProfit: number }> = {};
-    let dateTotalSales = 0;
+  const {
+    totalSales,
+    totalProductSales,
+    totalBuyerShipping,
+    totalSettlement,
+    totalFees,
+    totalCost,
+    totalPackaging,
+    totalActualShipping,
+    totalGrossProfit,
+    totalVatDeducted,
+    totalVat,
+    totalIncomeTax,
+    totalNetProfit,
+    avgMargin,
+    unmatchedOrders,
+    bundleOrders,
+    bundleSavedShipping,
+  } = metrics;
 
-    platformList.forEach((p) => {
-      const siteOrders = dOrders.filter((o) => o.platform === p.id);
-      const sales = siteOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
-      const netProfit = siteOrders.reduce((sum, o) => sum + o.netProfit, 0);
-      siteSalesMap[p.id] = { sales, orderCount: siteOrders.length, netProfit };
-      dateTotalSales += sales;
+  // Platform Breakdown (Memoized O(N) single-pass)
+  const platformStats = useMemo(() => {
+    const map = new Map<string, { orderCount: number; sales: number; settlement: number; cost: number; netProfit: number }>();
+    
+    for (let i = 0; i < filteredOrders.length; i++) {
+      const o = filteredOrders[i];
+      const p = o.platform || 'smartstore';
+      let entry = map.get(p);
+      if (!entry) {
+        entry = { orderCount: 0, sales: 0, settlement: 0, cost: 0, netProfit: 0 };
+        map.set(p, entry);
+      }
+      entry.orderCount += 1;
+      entry.sales += (o.totalPrice + o.buyerShippingFee);
+      entry.settlement += o.settlementAmount;
+      entry.cost += o.totalCost;
+      entry.netProfit += o.netProfit;
+    }
+
+    return Object.values(PLATFORMS).map((pConfig) => {
+      const stat = map.get(pConfig.id) || { orderCount: 0, sales: 0, settlement: 0, cost: 0, netProfit: 0 };
+      const pMargin = stat.sales > 0 ? Math.round((stat.netProfit / stat.sales) * 100) : 0;
+      return {
+        config: pConfig,
+        orderCount: stat.orderCount,
+        sales: stat.sales,
+        settlement: stat.settlement,
+        cost: stat.cost,
+        netProfit: stat.netProfit,
+        marginRate: pMargin,
+      };
     });
+  }, [filteredOrders]);
 
-    return {
-      date,
-      siteSalesMap,
-      dateTotalSales,
-      totalOrderCount: dOrders.length,
-    };
-  });
+  // Daily Comparison Summary (Memoized O(N) single-pass)
+  const dailySummaries = useMemo(() => {
+    const map = new Map<string, {
+      date: string;
+      orderCount: number;
+      totalSales: number;
+      productSales: number;
+      shippingRevenue: number;
+      feeTotal: number;
+      settlementTotal: number;
+      costTotal: number;
+      packagingTotal: number;
+      actualShippingTotal: number;
+      grossProfitTotal: number;
+      vatTotal: number;
+      taxTotal: number;
+      netProfit: number;
+      marginRate: number;
+    }>();
+
+    for (let i = 0; i < orders.length; i++) {
+      const o = orders[i];
+      const date = o.orderDate || 'nodate';
+      let entry = map.get(date);
+      if (!entry) {
+        entry = {
+          date,
+          orderCount: 0,
+          totalSales: 0,
+          productSales: 0,
+          shippingRevenue: 0,
+          feeTotal: 0,
+          settlementTotal: 0,
+          costTotal: 0,
+          packagingTotal: 0,
+          actualShippingTotal: 0,
+          grossProfitTotal: 0,
+          vatTotal: 0,
+          taxTotal: 0,
+          netProfit: 0,
+          marginRate: 0,
+        };
+        map.set(date, entry);
+      }
+      entry.orderCount += 1;
+      entry.totalSales += (o.totalPrice + o.buyerShippingFee);
+      entry.productSales += o.totalPrice;
+      entry.shippingRevenue += o.buyerShippingFee;
+      entry.feeTotal += (o.feeAmount + (o.knowledgeShoppingFee || 0));
+      entry.settlementTotal += o.settlementAmount;
+      entry.costTotal += o.totalCost;
+      entry.packagingTotal += o.packagingCost;
+      entry.actualShippingTotal += o.actualShippingCost;
+      entry.grossProfitTotal += o.grossProfit;
+      entry.vatTotal += o.vatAmount;
+      entry.taxTotal += o.incomeTax;
+      entry.netProfit += o.netProfit;
+    }
+
+    const list = Array.from(map.values());
+    list.forEach((d) => {
+      d.marginRate = d.totalSales > 0 ? Math.round((d.netProfit / d.totalSales) * 100) : 0;
+    });
+    return list.sort((a, b) => b.date.localeCompare(a.date));
+  }, [orders]);
+
+  const platformList = useMemo(() => Object.values(PLATFORMS), []);
+
+  const uniqueDates = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach((o) => {
+      if (o.orderDate) set.add(o.orderDate);
+    });
+    return Array.from(set).sort().reverse();
+  }, [orders]);
+
+  const platformListTotals = useMemo(() => {
+    const map: Record<string, { totalSales: number; orderCount: number }> = {};
+    for (let i = 0; i < orders.length; i++) {
+      const o = orders[i];
+      const pId = o.platform || 'smartstore';
+      if (!map[pId]) map[pId] = { totalSales: 0, orderCount: 0 };
+      map[pId].totalSales += (o.totalPrice + o.buyerShippingFee);
+      map[pId].orderCount += 1;
+    }
+    return map;
+  }, [orders]);
+
+  // Daily Sales per Site (Platform x Date Matrix) (Memoized O(N) single-pass)
+  const dailyPlatformMatrix = useMemo(() => {
+    const dateMap = new Map<string, {
+      siteSalesMap: Record<string, { sales: number; orderCount: number; netProfit: number }>;
+      dateTotalSales: number;
+      totalOrderCount: number;
+    }>();
+
+    for (let i = 0; i < orders.length; i++) {
+      const o = orders[i];
+      const date = o.orderDate || 'nodate';
+      let dateObj = dateMap.get(date);
+      if (!dateObj) {
+        dateObj = {
+          siteSalesMap: {},
+          dateTotalSales: 0,
+          totalOrderCount: 0,
+        };
+        dateMap.set(date, dateObj);
+      }
+
+      const pId = o.platform || 'smartstore';
+      let pStat = dateObj.siteSalesMap[pId];
+      if (!pStat) {
+        pStat = { sales: 0, orderCount: 0, netProfit: 0 };
+        dateObj.siteSalesMap[pId] = pStat;
+      }
+
+      const sales = o.totalPrice + o.buyerShippingFee;
+      pStat.sales += sales;
+      pStat.orderCount += 1;
+      pStat.netProfit += o.netProfit;
+
+      dateObj.dateTotalSales += sales;
+      dateObj.totalOrderCount += 1;
+    }
+
+    return uniqueDates.map((date) => {
+      const data = dateMap.get(date) || {
+        siteSalesMap: {},
+        dateTotalSales: 0,
+        totalOrderCount: 0,
+      };
+      return {
+        date,
+        siteSalesMap: data.siteSalesMap,
+        dateTotalSales: data.dateTotalSales,
+        totalOrderCount: data.totalOrderCount,
+      };
+    });
+  }, [orders, uniqueDates]);
 
   return (
     <div className="space-y-6">
@@ -517,13 +667,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <tr>
                 <td className="py-3 px-4 sticky left-0 bg-slate-100/90 shadow-2xs">사이트별 총 합계</td>
                 {platformList.map((p) => {
-                  const pOrders = orders.filter((o) => o.platform === p.id);
-                  const pTotalSales = pOrders.reduce((sum, o) => sum + (o.totalPrice + o.buyerShippingFee), 0);
+                  const stat = platformListTotals[p.id] || { totalSales: 0, orderCount: 0 };
                   return (
                     <td key={p.id} className="py-3 px-3 text-right">
                       <div className="flex flex-col items-end">
-                        <span className="font-extrabold text-indigo-900">{formatKRW(pTotalSales)}원</span>
-                        <span className="text-[10px] text-indigo-600 font-semibold">{pOrders.length}건</span>
+                        <span className="font-extrabold text-indigo-900">{formatKRW(stat.totalSales)}원</span>
+                        <span className="text-[10px] text-indigo-600 font-semibold">{stat.orderCount}건</span>
                       </div>
                     </td>
                   );
