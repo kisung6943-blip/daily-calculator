@@ -149,24 +149,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }, [filteredOrders]);
 
   // Daily Comparison Summary (Memoized O(N) single-pass)
-  const dailySummaries = useMemo(() => {
-    const map = new Map<string, {
-      date: string;
-      orderCount: number;
-      totalSales: number;
-      productSales: number;
-      shippingRevenue: number;
-      feeTotal: number;
-      settlementTotal: number;
-      costTotal: number;
-      packagingTotal: number;
-      actualShippingTotal: number;
-      grossProfitTotal: number;
-      vatTotal: number;
-      taxTotal: number;
-      netProfit: number;
-      marginRate: number;
-    }>();
+  const dailySummaries = useMemo<DailySummary[]>(() => {
+    const map = new Map<string, DailySummary>();
 
     for (let i = 0; i < orders.length; i++) {
       const o = orders[i];
@@ -186,8 +170,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           actualShippingTotal: 0,
           grossProfitTotal: 0,
           vatTotal: 0,
-          taxTotal: 0,
-          netProfit: 0,
+          incomeTaxTotal: 0,
+          netProfitTotal: 0,
           marginRate: 0,
         };
         map.set(date, entry);
@@ -203,13 +187,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       entry.actualShippingTotal += o.actualShippingCost;
       entry.grossProfitTotal += o.grossProfit;
       entry.vatTotal += o.vatAmount;
-      entry.taxTotal += o.incomeTax;
-      entry.netProfit += o.netProfit;
+      entry.incomeTaxTotal += o.incomeTax;
+      entry.netProfitTotal += o.netProfit;
     }
 
     const list = Array.from(map.values());
     list.forEach((d) => {
-      d.marginRate = d.totalSales > 0 ? Math.round((d.netProfit / d.totalSales) * 100) : 0;
+      d.marginRate = d.totalSales > 0 ? Math.round((d.netProfitTotal / d.totalSales) * 100) : 0;
     });
     return list.sort((a, b) => b.date.localeCompare(a.date));
   }, [orders]);

@@ -612,8 +612,8 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
       )}
 
       {/* Search & Filter Bar */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative shrink-0" style={{ width: '600px', minWidth: '400px', maxWidth: '100%', flexShrink: 0 }}>
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             id="input-search-table"
@@ -622,7 +622,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
             lang="ko"
             autoCapitalize="off"
             autoCorrect="off"
-            style={{ imeMode: 'active' as any }}
+            style={{ imeMode: 'active' as any, width: '100%', minWidth: '100%' }}
             placeholder="상품명, 옵션명, 수취인, 주문번호 검색 (영타 입력 시 한글 자동 변환)..."
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}

@@ -325,9 +325,10 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
       </div>
 
       {/* Filter & Search Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
-        <div className="flex items-center space-x-2 flex-1 max-w-md">
-          <div className="relative w-full">
+      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs space-y-2.5">
+        {/* Top Row: Expanded Full-Width Search Input & Quick Tools */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative shrink-0" style={{ width: '600px', minWidth: '450px', maxWidth: '100%', flexShrink: 0 }}>
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               id="input-search-cost"
@@ -336,11 +337,11 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
               lang="ko"
               autoCapitalize="off"
               autoCorrect="off"
-              style={{ imeMode: 'active' as any }}
+              style={{ imeMode: 'active' as any, width: '100%', minWidth: '100%' }}
               placeholder="상품명, 옵션명, 공급처, 메모 검색 (영타 입력 시 한글 자동 변환)..."
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-9 pr-3 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium"
             />
             {korSearchTerm !== searchTerm.trim() && korSearchTerm.length > 0 && (
               <button
@@ -353,7 +354,7 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
               </button>
             )}
           </div>
-          <label className="flex items-center space-x-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-1 rounded-lg cursor-pointer whitespace-nowrap shrink-0">
+          <label className="flex items-center space-x-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-2 rounded-lg cursor-pointer whitespace-nowrap shrink-0">
             <input
               type="checkbox"
               checked={autoConvertEng}
@@ -366,7 +367,7 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
             <button
               type="button"
               onClick={handleScrollTop}
-              className="inline-flex items-center px-2 py-1.5 rounded-lg text-xs font-bold bg-white text-indigo-700 border border-slate-300 hover:bg-indigo-50 shadow-xs cursor-pointer"
+              className="inline-flex items-center px-2.5 py-2 rounded-lg text-xs font-bold bg-white text-indigo-700 border border-slate-300 hover:bg-indigo-50 shadow-xs cursor-pointer"
               title="테이블 맨 위로 스크롤합니다"
             >
               ▲ 맨 위로
@@ -374,7 +375,7 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
             <button
               type="button"
               onClick={handleScrollBottom}
-              className="inline-flex items-center px-2 py-1.5 rounded-lg text-xs font-bold bg-white text-indigo-700 border border-slate-300 hover:bg-indigo-50 shadow-xs cursor-pointer"
+              className="inline-flex items-center px-2.5 py-2 rounded-lg text-xs font-bold bg-white text-indigo-700 border border-slate-300 hover:bg-indigo-50 shadow-xs cursor-pointer"
               title="테이블 맨 아래로 스크롤합니다"
             >
               ▼ 맨 아래로
@@ -382,8 +383,8 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
           </div>
         </div>
 
-        {/* Category Tabs */}
-        <div className="flex items-center space-x-1 overflow-x-auto scrollbar-none text-xs">
+        {/* Bottom Row: Category Tabs */}
+        <div className="flex items-center space-x-1 overflow-x-auto scrollbar-none text-xs pt-2 border-t border-slate-100">
           <button
             onClick={() => setSelectedCategory('all')}
             className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
@@ -419,8 +420,8 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
           <table className="min-w-full text-xs text-left">
             <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10 border-b border-slate-200">
               <tr>
-                <th className="py-2.5 px-4 bg-slate-100 w-[260px] min-w-[260px] max-w-[260px] border-r border-slate-300" style={{ position: 'sticky', left: 0, top: 0, zIndex: 40 }}>상품명 📌</th>
-                <th className="py-2.5 px-3 bg-slate-100 w-[150px] min-w-[150px] max-w-[150px] border-r-2 border-slate-300 shadow-xs" style={{ position: 'sticky', left: 260, top: 0, zIndex: 40 }}>옵션명 📌</th>
+                <th className="py-2.5 px-4 bg-slate-100 w-[340px] min-w-[340px] max-w-[340px] border-r border-slate-300" style={{ position: 'sticky', left: 0, top: 0, zIndex: 40 }}>상품명 📌</th>
+                <th className="py-2.5 px-3 bg-slate-100 w-[150px] min-w-[150px] max-w-[150px] border-r-2 border-slate-300 shadow-xs" style={{ position: 'sticky', left: 340, top: 0, zIndex: 40 }}>옵션명 📌</th>
                 <th className="py-2.5 px-3 text-right bg-rose-100 text-rose-950 font-extrabold min-w-[130px]">
                   매입원가 (단가)
                 </th>
@@ -446,10 +447,10 @@ export const CostMasterView: React.FC<CostMasterViewProps> = ({
                       key={item.id}
                       className={`hover:bg-indigo-50/50 ${cellBg}`}
                     >
-                      <td className={`py-2.5 px-4 font-semibold text-slate-900 w-[260px] min-w-[260px] max-w-[260px] border-r border-slate-300 ${cellBg}`} style={{ position: 'sticky', left: 0, zIndex: 20 }}>
+                      <td className={`py-2.5 px-4 font-semibold text-slate-900 w-[340px] min-w-[340px] max-w-[340px] border-r border-slate-300 ${cellBg}`} style={{ position: 'sticky', left: 0, zIndex: 20 }}>
                         {item.productName}
                       </td>
-                      <td className={`py-2.5 px-3 text-slate-600 w-[150px] min-w-[150px] max-w-[150px] border-r-2 border-slate-300 shadow-2xs ${cellBg}`} style={{ position: 'sticky', left: 260, zIndex: 20 }}>
+                      <td className={`py-2.5 px-3 text-slate-600 w-[150px] min-w-[150px] max-w-[150px] border-r-2 border-slate-300 shadow-2xs ${cellBg}`} style={{ position: 'sticky', left: 340, zIndex: 20 }}>
                         <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[11px]">
                           {item.optionName}
                         </span>
