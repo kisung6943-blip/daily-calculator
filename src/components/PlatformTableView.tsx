@@ -156,7 +156,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
 
   // Pagination state (Dynamic page size for smooth rendering)
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(50);
+  const [pageSize, setPageSize] = useState<number>(0);
 
   const totalPages = useMemo(() => {
     if (pageSize === 0) return 1;
@@ -1267,10 +1267,10 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                 }}
                 className="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
               >
-                <option value={30}>30개씩</option>
+                <option value={0}>전체보기 (기본)</option>
                 <option value={50}>50개씩</option>
                 <option value={100}>100개씩</option>
-                <option value={0}>전체보기</option>
+                <option value={30}>30개씩</option>
               </select>
             </div>
           </div>

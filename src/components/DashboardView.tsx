@@ -198,6 +198,47 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return list.sort((a, b) => b.date.localeCompare(a.date));
   }, [orders]);
 
+  // Overall Totals across all dates (for historic breakdown table & matrix footer)
+  const allPeriodTotals = useMemo(() => {
+    let orderCount = 0;
+    let totalSales = 0;
+    let settlementTotal = 0;
+    let costTotal = 0;
+    let packagingTotal = 0;
+    let actualShippingTotal = 0;
+    let grossProfitTotal = 0;
+    let incomeTaxTotal = 0;
+    let netProfitTotal = 0;
+
+    for (let i = 0; i < dailySummaries.length; i++) {
+      const d = dailySummaries[i];
+      orderCount += d.orderCount;
+      totalSales += d.totalSales;
+      settlementTotal += d.settlementTotal;
+      costTotal += d.costTotal;
+      packagingTotal += d.packagingTotal;
+      actualShippingTotal += d.actualShippingTotal;
+      grossProfitTotal += d.grossProfitTotal;
+      incomeTaxTotal += d.incomeTaxTotal;
+      netProfitTotal += d.netProfitTotal;
+    }
+
+    const marginRate = totalSales > 0 ? Math.round((netProfitTotal / totalSales) * 100) : 0;
+
+    return {
+      orderCount,
+      totalSales,
+      settlementTotal,
+      costTotal,
+      packagingTotal,
+      actualShippingTotal,
+      grossProfitTotal,
+      incomeTaxTotal,
+      netProfitTotal,
+      marginRate,
+    };
+  }, [dailySummaries]);
+
   const platformList = useMemo(() => Object.values(PLATFORMS), []);
 
   const uniqueDates = useMemo(() => {
@@ -566,18 +607,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <tfoot className="bg-slate-100/80 font-bold border-t-2 border-slate-300 text-slate-900">
               <tr>
                 <td className="py-3 px-4">전체 기간 합계</td>
-                <td className="py-3 px-3 text-center">{filteredOrders.length}건</td>
-                <td className="py-3 px-3 text-right text-slate-900">{formatKRW(totalSales, true)}</td>
-                <td className="py-3 px-3 text-right text-emerald-800">{formatKRW(totalSettlement, true)}</td>
-                <td className="py-3 px-3 text-right text-slate-700">{formatKRW(totalCost, true)}</td>
-                <td className="py-3 px-3 text-right text-slate-700">{formatKRW(totalPackaging + totalActualShipping, true)}</td>
-                <td className="py-3 px-3 text-right text-slate-900">{formatKRW(totalGrossProfit, true)}</td>
-                <td className="py-3 px-3 text-right text-rose-700">-{formatKRW(totalIncomeTax, true)}</td>
+                <td className="py-3 px-3 text-center">{allPeriodTotals.orderCount}건</td>
+                <td className="py-3 px-3 text-right text-slate-900">{formatKRW(allPeriodTotals.totalSales, true)}</td>
+                <td className="py-3 px-3 text-right text-emerald-800">{formatKRW(allPeriodTotals.settlementTotal, true)}</td>
+                <td className="py-3 px-3 text-right text-slate-700">{formatKRW(allPeriodTotals.costTotal, true)}</td>
+                <td className="py-3 px-3 text-right text-slate-700">{formatKRW(allPeriodTotals.packagingTotal + allPeriodTotals.actualShippingTotal, true)}</td>
+                <td className="py-3 px-3 text-right text-slate-900">{formatKRW(allPeriodTotals.grossProfitTotal, true)}</td>
+                <td className="py-3 px-3 text-right text-rose-700">-{formatKRW(allPeriodTotals.incomeTaxTotal, true)}</td>
                 <td className="py-3 px-4 text-right text-indigo-900 text-sm bg-indigo-100/50">
-                  {formatKRW(totalNetProfit, true)}
+                  {formatKRW(allPeriodTotals.netProfitTotal, true)}
                 </td>
                 <td className="py-3 px-3 text-center text-indigo-900">
-                  {avgMargin}%
+                  {allPeriodTotals.marginRate}%
                 </td>
               </tr>
             </tfoot>
@@ -662,7 +703,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   );
                 })}
                 <td className="py-3 px-4 text-right text-indigo-950 text-sm bg-indigo-100/60 font-black">
-                  {formatKRW(totalSales, true)}
+                  {formatKRW(allPeriodTotals.totalSales, true)}
                 </td>
               </tr>
             </tfoot>
