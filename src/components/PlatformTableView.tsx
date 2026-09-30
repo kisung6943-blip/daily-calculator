@@ -860,6 +860,11 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                                   쌀 6%
                                 </span>
                               )}
+                              {platform === 'coupang' && (ord.feeRate === 11.66 || /누룽지/.test(ord.productName)) && (
+                                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-orange-100 text-orange-800 shrink-0" title="부가세별도 10.6% (부가세포함 11.66%)">
+                                  누룽지 11.66%
+                                </span>
+                              )}
                             </div>
                             {/* Option & Net Profit Badges directly under Product Name */}
                             <div className="mt-1 flex items-center space-x-1 flex-wrap gap-y-1">

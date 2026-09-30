@@ -23,7 +23,7 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_ORDERS_KEY);
       if (saved) {
         rawOrders = JSON.parse(saved);
-        // Auto-migrate legacy saved orders where cart total (84300) was stored as unitPrice
+        // Auto-migrate legacy saved orders where cart total (84300) was stored as unitPrice, or Coupang nurungji was 6%
         rawOrders = rawOrders.map((ord) => {
           if (ord.unitPrice === 84300 || ord.totalPrice === 84300) {
             if (ord.orderNumber === '4082' || ord.productName.includes('보조손잡이')) {
@@ -36,6 +36,14 @@ export default function App() {
               return { ...ord, unitPrice: 29900, totalPrice: 59800 };
             }
           }
+          if (ord.platform === 'coupang' && /누룽지/.test(ord.productName || '') && ord.feeRate === 6) {
+            return {
+              ...ord,
+              feeRate: 11.66,
+              feeAmount: 0,
+              settlementAmount: 0,
+            };
+          }
           return ord;
         });
       }
@@ -47,7 +55,7 @@ export default function App() {
       const savedCosts = localStorage.getItem(STORAGE_COSTS_KEY);
       if (savedCosts) rawCosts = JSON.parse(savedCosts);
     } catch (e) {}
-    return processAllOrders(deduplicateOrders(rawOrders), rawCosts, { ...DEFAULT_SETTINGS, defaultIncomeTaxRate: 10 });
+    return processAllOrders(deduplicateOrders(rawOrders), rawCosts, { ...DEFAULT_SETTINGS, coupangNurungjiFee: 11.66, defaultIncomeTaxRate: 10 });
   });
 
   const [costItems, setCostItems] = useState<CostItem[]>(() => {
@@ -69,6 +77,7 @@ export default function App() {
         return {
           ...DEFAULT_SETTINGS,
           ...parsed,
+          coupangNurungjiFee: parsed.coupangNurungjiFee || 11.66,
           defaultIncomeTaxRate: isNaN(rate) || rate === 2.4 || rate === 24 ? 10 : rate,
           bundleOnlyFirstPackageCost: true,
         };
@@ -76,7 +85,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    return { ...DEFAULT_SETTINGS, defaultIncomeTaxRate: 10 };
+    return { ...DEFAULT_SETTINGS, coupangNurungjiFee: 11.66, defaultIncomeTaxRate: 10 };
   });
 
   // 2. Navigation & Filter State

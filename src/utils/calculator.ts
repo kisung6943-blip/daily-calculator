@@ -74,6 +74,11 @@ export function getPlatformFeeRate(
   settings: SettlementSettings
 ): number {
   if (platform === 'coupang') {
+    // 누룽지는 쌀(6%)이 아니라 부가세별도 10.6% -> 부가세 포함 11.66% 적용
+    const isNurungji = /누룽지/.test(productName);
+    if (isNurungji) {
+      return settings.coupangNurungjiFee || 11.66;
+    }
     // 쌀, 백미, 찹쌀, 현미, 햅쌀 등 양곡류는 6%
     const isRice = /쌀|햅쌀|고시히카리|경기미|추청|현미|백미|찹쌀|오대쌀|일품쌀|잡곡/.test(productName);
     return isRice ? settings.coupangRiceFee : settings.coupangDefaultFee;
@@ -129,8 +134,13 @@ export function recalculateOrder(
   const buyerShippingFee = isBundleSubItem ? 0 : Number(order.buyerShippingFee) || 0;
   const isShippingFree = buyerShippingFee === 0;
 
-  // Platform fee calculation
-  let feeRate = order.feeRate !== undefined ? Number(order.feeRate) : getPlatformFeeRate(platform, order.productName || '', settings);
+  // Platform fee calculation: if Coupang order has '누룽지' and previous 6% was mistakenly set, auto-correct to 11.66%
+  const isNurungji = /누룽지/.test(order.productName || '');
+  const isCoupangNurungjiWithOldFee = platform === 'coupang' && isNurungji && order.feeRate === 6;
+  let feeRate = (order.feeRate !== undefined && !isCoupangNurungjiWithOldFee) 
+    ? Number(order.feeRate) 
+    : getPlatformFeeRate(platform, order.productName || '', settings);
+
   let feeAmount = Number(order.feeAmount) || 0;
   let knowledgeShoppingFee = Number(order.knowledgeShoppingFee) || 0;
   let settlementAmount = Number(order.settlementAmount) || 0;
@@ -142,11 +152,11 @@ export function recalculateOrder(
     settlementAmount = totalPrice - (feeAmount + knowledgeShoppingFee);
   } else {
     // 쿠팡, 오늘의집, 자사몰(홈페이지), 11번가, G마켓, 옥션: (정산금액 = 총판매가 - 수수료)
-    if (order.settlementAmount !== undefined && Number(order.settlementAmount) > 0 && Math.abs(totalPrice - Number(order.settlementAmount)) <= totalPrice) {
+    if (order.settlementAmount !== undefined && Number(order.settlementAmount) > 0 && Math.abs(totalPrice - Number(order.settlementAmount)) <= totalPrice && !isCoupangNurungjiWithOldFee) {
       // Prioritize explicit settlement amount from Excel
       settlementAmount = Number(order.settlementAmount);
       feeAmount = Math.max(0, totalPrice - settlementAmount);
-    } else if (order.feeAmount !== undefined && Number(order.feeAmount) > 0) {
+    } else if (order.feeAmount !== undefined && Number(order.feeAmount) > 0 && !isCoupangNurungjiWithOldFee) {
       feeAmount = Math.abs(Number(order.feeAmount));
       settlementAmount = totalPrice - feeAmount;
     } else {
@@ -159,8 +169,8 @@ export function recalculateOrder(
   const unitCost = Number(order.unitCost) || 0;
   const totalCost = unitCost * quantity;
 
-  // Packaging & Actual Shipping
-  const isRiceProduct = /쌀|햅쌀|고시히카리|경기미|추청|현미|백미|찹쌀|오대쌀|일품쌀|잡곡/.test(order.productName || '');
+  // Packaging & Actual Shipping (누룽지는 일반 포장비 500원 적용)
+  const isRiceProduct = !isNurungji && /쌀|햅쌀|고시히카리|경기미|추청|현미|백미|찹쌀|오대쌀|일품쌀|잡곡/.test(order.productName || '');
   const defaultPkgCost = isRiceProduct ? (settings.ricePackagingCost || 1000) : settings.defaultPackagingCost;
   let packagingCost = order.packagingCost !== undefined ? Number(order.packagingCost) : defaultPkgCost;
   if (isBundleSubItem && (settings.bundleOnlyFirstPackageCost ?? true)) {

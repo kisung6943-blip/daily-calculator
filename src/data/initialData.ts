@@ -90,6 +90,7 @@ export const DEFAULT_SETTINGS: SettlementSettings = {
   bundleOnlyFirstPackageCost: true, // 동일인 합배송 시 포장비 1회만 정산
   coupangDefaultFee: 13.0,
   coupangRiceFee: 6.0,
+  coupangNurungjiFee: 11.66,
   homepageFee: 3.85,
   smartstoreBaseFee: 3.74,
   smartstoreKnowledgeFee: 2.0,

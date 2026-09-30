@@ -231,6 +231,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div>
+                <label className="block font-medium text-slate-700 mb-1">쿠팡 누룽지 수수료 (VAT포함 %)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formState.coupangNurungjiFee || 11.66}
+                  onChange={(e) =>
+                    setFormState({ ...formState, coupangNurungjiFee: Number(e.target.value) || 0 })
+                  }
+                  className="w-full p-1.5 border rounded bg-white text-orange-700 font-bold"
+                />
+                <span className="text-[10px] text-slate-500 block mt-0.5">부가세별도 10.6% × 1.1 = 11.66%</span>
+              </div>
+
+              <div>
                 <label className="block font-medium text-slate-700 mb-1">자사몰 PG 수수료 (%)</label>
                 <input
                   type="number"

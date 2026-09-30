@@ -89,6 +89,7 @@ export interface SettlementSettings {
   // Platform specific fee defaults
   coupangDefaultFee: number; // 13%
   coupangRiceFee: number; // 6% (쌀/양곡)
+  coupangNurungjiFee?: number; // 11.66% (누룽지: 부가세별도 10.6% * 1.1 = 11.66%)
   homepageFee: number; // 3.85%
   smartstoreBaseFee: number; // 3.74%
   smartstoreKnowledgeFee: number; // 2.0%
