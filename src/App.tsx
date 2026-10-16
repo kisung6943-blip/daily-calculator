@@ -10,13 +10,14 @@ import { DEFAULT_SETTINGS, INITIAL_COST_ITEMS, INITIAL_ORDERS, PLATFORMS } from 
 import { CostItem, OrderItem, PlatformType, SettlementSettings } from './types';
 import { deduplicateOrders, isSameOption, normalizeText, processAllOrders, recalculateOrder } from './utils/calculator';
 import { exportOrdersToExcel } from './utils/excelParser';
+import { idbDelete, idbGet, idbSet } from './utils/storage';
 
 const STORAGE_ORDERS_KEY = 'seller_settlement_orders_v1';
 const STORAGE_COSTS_KEY = 'seller_settlement_costs_v1';
 const STORAGE_SETTINGS_KEY = 'seller_settlement_settings_v1';
 
 export default function App() {
-  // 1. Core State with LocalStorage Persistence
+  // 1. Core State with LocalStorage + IndexedDB Persistence (for >5MB large datasets)
   const [orders, setOrders] = useState<OrderItem[]>(() => {
     let rawOrders = INITIAL_ORDERS;
     try {
@@ -88,6 +89,47 @@ export default function App() {
     return { ...DEFAULT_SETTINGS, coupangNurungjiFee: 11.66, defaultIncomeTaxRate: 10 };
   });
 
+  // Hydrate from IndexedDB on initial load (supports unlimited orders beyond 5MB localStorage quota)
+  const isHydratedRef = useRef(false);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [idbOrders, idbCosts] = await Promise.all([
+          idbGet<OrderItem[]>(STORAGE_ORDERS_KEY),
+          idbGet<CostItem[]>(STORAGE_COSTS_KEY),
+        ]);
+        if (!mounted) return;
+
+        let activeCosts = costItems;
+        if (idbCosts && Array.isArray(idbCosts) && idbCosts.length >= costItems.length) {
+          activeCosts = idbCosts;
+          setCostItems(idbCosts);
+        } else {
+          await idbSet(STORAGE_COSTS_KEY, costItems);
+        }
+
+        if (idbOrders && Array.isArray(idbOrders) && idbOrders.length > 0) {
+          // Merge idbOrders and current localStorage orders so nothing is ever lost
+          const merged = deduplicateOrders([...idbOrders, ...orders]);
+          const processed = processAllOrders(merged, activeCosts, settings);
+          setOrders(processed);
+          await idbSet(STORAGE_ORDERS_KEY, processed);
+        } else if (orders.length > 0) {
+          // Migrate existing localStorage orders into IndexedDB
+          await idbSet(STORAGE_ORDERS_KEY, orders);
+        }
+      } catch (e) {
+        console.warn('IndexedDB hydration error:', e);
+      } finally {
+        if (mounted) isHydratedRef.current = true;
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // 2. Navigation & Filter State
   const [currentTab, setCurrentTab] = useState<'dashboard' | PlatformType | 'cost_master'>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string>('all');
@@ -107,22 +149,26 @@ export default function App() {
     setOrders((prev) => processAllOrders(prev, costItems, settings));
   }, [settings]);
 
-  // Sync to localStorage with debounce to avoid blocking main UI thread on cell edits
+  // Sync to IndexedDB (unlimited capacity) + localStorage with debounce
   useEffect(() => {
     const timer = setTimeout(() => {
+      idbSet(STORAGE_ORDERS_KEY, orders);
       try {
         localStorage.setItem(STORAGE_ORDERS_KEY, JSON.stringify(orders));
-      } catch (e) {}
-    }, 300);
+      } catch (e) {
+        // QuotaExceededError (>5MB in localStorage): IndexedDB safely holds the full dataset
+      }
+    }, 200);
     return () => clearTimeout(timer);
   }, [orders]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      idbSet(STORAGE_COSTS_KEY, costItems);
       try {
         localStorage.setItem(STORAGE_COSTS_KEY, JSON.stringify(costItems));
       } catch (e) {}
-    }, 300);
+    }, 200);
     return () => clearTimeout(timer);
   }, [costItems]);
 
@@ -131,7 +177,7 @@ export default function App() {
       try {
         localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(settings));
       } catch (e) {}
-    }, 300);
+    }, 200);
     return () => clearTimeout(timer);
   }, [settings]);
 
@@ -344,6 +390,10 @@ export default function App() {
     const deduped = deduplicateOrders(mergedOrders);
     const processed = processAllOrders(deduped, costItems, settings);
     setOrders(processed);
+    idbSet(STORAGE_ORDERS_KEY, processed);
+    try {
+      localStorage.setItem(STORAGE_ORDERS_KEY, JSON.stringify(processed));
+    } catch (e) {}
     setCurrentTab('dashboard');
   };
 
@@ -352,6 +402,7 @@ export default function App() {
     if (confirm('저장된 모든 주문 내역을 삭제하시겠습니까?\n(원가 관리표의 원가 목록은 그대로 유지됩니다)')) {
       setOrders([]);
       localStorage.removeItem(STORAGE_ORDERS_KEY);
+      idbDelete(STORAGE_ORDERS_KEY);
       setSelectedDate('all');
       setCurrentTab('dashboard');
     }
@@ -363,6 +414,8 @@ export default function App() {
       setOrders(INITIAL_ORDERS);
       setCostItems(INITIAL_COST_ITEMS);
       setSettings(DEFAULT_SETTINGS);
+      idbSet(STORAGE_ORDERS_KEY, INITIAL_ORDERS);
+      idbSet(STORAGE_COSTS_KEY, INITIAL_COST_ITEMS);
       setSelectedDate('all');
       setCurrentTab('dashboard');
     }
