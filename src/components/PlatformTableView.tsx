@@ -5,6 +5,7 @@ import {
   Calendar,
   Check, 
   ChevronDown, 
+  ChevronRight,
   Download, 
   Edit3, 
   FileSpreadsheet, 
@@ -236,6 +237,83 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
     });
     return list.sort((a, b) => b.date.localeCompare(a.date));
   }, [platformOrders]);
+
+  const [platformPeriodViewMode, setPlatformPeriodViewMode] = useState<'monthly' | 'daily' | string>('monthly');
+  const [expandedPlatformMonths, setExpandedPlatformMonths] = useState<Record<string, boolean>>({});
+
+  const toggleExpandPlatformMonth = (monthKey: string) => {
+    setExpandedPlatformMonths((prev) => ({ ...prev, [monthKey]: !prev[monthKey] }));
+  };
+
+  const monthlyPlatformSummaries = useMemo(() => {
+    const formatMonthLabel = (m: string) => {
+      const [y, mm] = m.split('-');
+      return y && mm && !isNaN(Number(mm)) ? `${y}년 ${Number(mm)}월` : m;
+    };
+
+    const map = new Map<string, {
+      month: string;
+      label: string;
+      dayCount: number;
+      orderCount: number;
+      sales: number;
+      settlement: number;
+      cost: number;
+      fees: number;
+      packagingTotal: number;
+      actualShippingTotal: number;
+      netProfit: number;
+      marginRate: number;
+      days: typeof dailyPlatformSummaries;
+    }>();
+
+    for (let i = 0; i < dailyPlatformSummaries.length; i++) {
+      const d = dailyPlatformSummaries[i];
+      const month = d.date && d.date.length >= 7 ? d.date.substring(0, 7) : '기타';
+      let entry = map.get(month);
+      if (!entry) {
+        entry = {
+          month,
+          label: formatMonthLabel(month),
+          dayCount: 0,
+          orderCount: 0,
+          sales: 0,
+          settlement: 0,
+          cost: 0,
+          fees: 0,
+          packagingTotal: 0,
+          actualShippingTotal: 0,
+          netProfit: 0,
+          marginRate: 0,
+          days: [],
+        };
+        map.set(month, entry);
+      }
+      entry.dayCount += 1;
+      entry.orderCount += d.orderCount;
+      entry.sales += d.sales;
+      entry.settlement += d.settlement;
+      entry.cost += d.cost;
+      entry.fees += d.fees;
+      entry.packagingTotal += d.packagingTotal;
+      entry.actualShippingTotal += d.actualShippingTotal;
+      entry.netProfit += d.netProfit;
+      entry.days.push(d);
+    }
+
+    const list = Array.from(map.values());
+    list.forEach((m) => {
+      m.marginRate = m.sales > 0 ? Math.round((m.netProfit / m.sales) * 100) : 0;
+    });
+    return list.sort((a, b) => b.month.localeCompare(a.month));
+  }, [dailyPlatformSummaries]);
+
+  const activePlatformMonthFilter = useMemo(() => {
+    if (platformPeriodViewMode !== 'monthly' && platformPeriodViewMode !== 'daily') {
+      return monthlyPlatformSummaries.find((m) => m.month === platformPeriodViewMode) || null;
+    }
+    return null;
+  }, [platformPeriodViewMode, monthlyPlatformSummaries]);
 
   const handleSortToggle = (field: 'netProfit' | 'productName' | 'marginRate' | 'totalPrice') => {
     if (sortField === field) {
@@ -529,31 +607,75 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
         </div>
       )}
 
-      {/* Daily Historic Breakdown Table for this specific Platform */}
+      {/* Monthly / Daily Historic Breakdown Table for this specific Platform */}
       {dailyPlatformSummaries.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
+          <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center space-x-2">
               <Calendar className="w-4 h-4 text-indigo-600" />
               <h3 className="text-xs font-bold text-slate-900">
-                📅 [{platformConfig.shortName}] 일자별(일별) 매출 및 정산 집계표
+                📅 [{platformConfig.shortName}]{' '}
+                {platformPeriodViewMode === 'monthly'
+                  ? '월별 매출 및 정산 집계표'
+                  : platformPeriodViewMode === 'daily'
+                  ? '일자별(일별) 매출 및 정산 집계표 (월별 구분)'
+                  : `${activePlatformMonthFilter?.label || platformPeriodViewMode} 일자별 매출 및 정산 집계표`}
               </h3>
               <span className="text-[11px] text-slate-500 font-normal">
-                (총 {dailyPlatformSummaries.length}개 일자 데이터)
+                (총 {monthlyPlatformSummaries.length}개월 · {dailyPlatformSummaries.length}개 일자)
               </span>
             </div>
-            <span className="text-[11px] text-slate-500">
-              * 해당 사이트의 일별 매출 및 정산액을 한눈에 확인할 수 있습니다
-            </span>
+            <div className="flex flex-wrap items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPlatformPeriodViewMode('monthly')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold border transition-all cursor-pointer ${
+                  platformPeriodViewMode === 'monthly'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                📅 월별 합계로 보기
+              </button>
+              {monthlyPlatformSummaries.map((m) => (
+                <button
+                  key={m.month}
+                  type="button"
+                  onClick={() => setPlatformPeriodViewMode(m.month)}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold border transition-all cursor-pointer ${
+                    platformPeriodViewMode === m.month
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-emerald-50'
+                  }`}
+                >
+                  {m.label} ({m.dayCount}일)
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPlatformPeriodViewMode('daily')}
+                className={`px-2 py-1 rounded-md text-[11px] font-bold border transition-all cursor-pointer ${
+                  platformPeriodViewMode === 'daily'
+                    ? 'bg-slate-800 text-white border-slate-800 shadow-2xs'
+                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                전체 일자 펼치기
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="min-w-full text-xs text-left">
               <thead className="bg-slate-100/80 text-slate-700 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-4">정산 일자</th>
+                  <th className="py-2.5 px-4">
+                    {platformPeriodViewMode === 'monthly' ? '정산 월 (클릭시 일별 상세)' : '정산 일자'}
+                  </th>
                   <th className="py-2.5 px-3 text-center">주문수</th>
-                  <th className="py-2.5 px-3 text-right">일 총매출액</th>
+                  <th className="py-2.5 px-3 text-right">
+                    {platformPeriodViewMode === 'monthly' ? '월 총매출액' : '일 총매출액'}
+                  </th>
                   <th className="py-2.5 px-3 text-right">정산예정액</th>
                   <th className="py-2.5 px-3 text-right">총 매입원가</th>
                   <th className="py-2.5 px-3 text-right">플랫폼 수수료</th>
@@ -563,48 +685,177 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {dailyPlatformSummaries.map((day) => (
-                  <tr key={day.date} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 px-4 font-bold text-slate-900 flex items-center">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2" />
-                      {day.date}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-medium">{day.orderCount}건</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatKRW(day.sales, true)}</td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-emerald-700">{formatKRW(day.settlement, true)}</td>
-                    <td className="py-2.5 px-3 text-right text-slate-600">{formatKRW(day.cost, true)}</td>
-                    <td className="py-2.5 px-3 text-right text-rose-600">-{formatKRW(day.fees, true)}</td>
-                    <td className="py-2.5 px-3 text-right text-slate-600">{formatKRW(day.packagingTotal + day.actualShippingTotal, true)}</td>
-                    <td className="py-2.5 px-4 text-right font-extrabold text-indigo-700 text-sm bg-indigo-50/30">
-                      {formatKRW(day.netProfit, true)}
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${
-                        day.marginRate >= 30 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {day.marginRate}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {platformPeriodViewMode === 'monthly' &&
+                  monthlyPlatformSummaries.map((m) => {
+                    const isExpanded = Boolean(expandedPlatformMonths[m.month]);
+                    return (
+                      <React.Fragment key={m.month}>
+                        <tr
+                          onClick={() => toggleExpandPlatformMonth(m.month)}
+                          className="hover:bg-indigo-50/40 transition-colors cursor-pointer bg-white"
+                          title="클릭하여 해당 월의 일자별 상세 내역 펼치기/접기"
+                        >
+                          <td className="py-2.5 px-4 font-extrabold text-slate-900 flex items-center space-x-2">
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-indigo-600 shrink-0" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                            )}
+                            <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0" />
+                            <span className="text-xs font-extrabold">{m.label}</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              {m.dayCount}일
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold text-slate-800">{m.orderCount}건</td>
+                          <td className="py-2.5 px-3 text-right font-extrabold text-slate-900">{formatKRW(m.sales, true)}</td>
+                          <td className="py-2.5 px-3 text-right font-bold text-emerald-700">{formatKRW(m.settlement, true)}</td>
+                          <td className="py-2.5 px-3 text-right font-semibold text-rose-800">{formatKRW(m.cost, true)}</td>
+                          <td className="py-2.5 px-3 text-right text-rose-600">-{formatKRW(m.fees, true)}</td>
+                          <td className="py-2.5 px-3 text-right text-slate-600">{formatKRW(m.packagingTotal + m.actualShippingTotal, true)}</td>
+                          <td className="py-2.5 px-4 text-right font-black text-indigo-700 text-sm bg-indigo-50/40">
+                            {formatKRW(m.netProfit, true)}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className={`px-2 py-0.5 rounded-full font-extrabold text-[11px] ${
+                              m.marginRate >= 30 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {m.marginRate}%
+                            </span>
+                          </td>
+                        </tr>
+
+                        {isExpanded &&
+                          m.days.map((day) => (
+                            <tr key={day.date} className="bg-slate-50/90 hover:bg-amber-50/40 transition-colors border-l-4 border-indigo-400">
+                              <td className="py-2 pl-10 pr-4 font-semibold text-slate-700 flex items-center">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-2" />
+                                {day.date}
+                              </td>
+                              <td className="py-2 px-3 text-center font-medium">{day.orderCount}건</td>
+                              <td className="py-2 px-3 text-right font-bold text-slate-900">{formatKRW(day.sales, true)}</td>
+                              <td className="py-2 px-3 text-right font-semibold text-emerald-700">{formatKRW(day.settlement, true)}</td>
+                              <td className="py-2 px-3 text-right text-slate-600">{formatKRW(day.cost, true)}</td>
+                              <td className="py-2 px-3 text-right text-rose-600">-{formatKRW(day.fees, true)}</td>
+                              <td className="py-2 px-3 text-right text-slate-600">{formatKRW(day.packagingTotal + day.actualShippingTotal, true)}</td>
+                              <td className="py-2 px-4 text-right font-bold text-indigo-700 bg-indigo-50/20">
+                                {formatKRW(day.netProfit, true)}
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${
+                                  day.marginRate >= 30 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {day.marginRate}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                      </React.Fragment>
+                    );
+                  })}
+
+                {platformPeriodViewMode === 'daily' &&
+                  monthlyPlatformSummaries.map((m) => (
+                    <React.Fragment key={m.month}>
+                      <tr className="bg-indigo-50/80 border-y border-indigo-200 font-extrabold text-indigo-950">
+                        <td className="py-2 px-4">{m.label} 합계 ({m.dayCount}일)</td>
+                        <td className="py-2 px-3 text-center">{m.orderCount}건</td>
+                        <td className="py-2 px-3 text-right">{formatKRW(m.sales, true)}</td>
+                        <td className="py-2 px-3 text-right text-emerald-800">{formatKRW(m.settlement, true)}</td>
+                        <td className="py-2 px-3 text-right text-rose-800">{formatKRW(m.cost, true)}</td>
+                        <td className="py-2 px-3 text-right text-rose-700">-{formatKRW(m.fees, true)}</td>
+                        <td className="py-2 px-3 text-right">{formatKRW(m.packagingTotal + m.actualShippingTotal, true)}</td>
+                        <td className="py-2 px-4 text-right text-indigo-900 bg-indigo-100/60">{formatKRW(m.netProfit, true)}</td>
+                        <td className="py-2 px-3 text-center">{m.marginRate}%</td>
+                      </tr>
+                      {m.days.map((day) => (
+                        <tr key={day.date} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2.5 px-4 font-bold text-slate-900 flex items-center">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2" />
+                            {day.date}
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-medium">{day.orderCount}건</td>
+                          <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatKRW(day.sales, true)}</td>
+                          <td className="py-2.5 px-3 text-right font-semibold text-emerald-700">{formatKRW(day.settlement, true)}</td>
+                          <td className="py-2.5 px-3 text-right text-slate-600">{formatKRW(day.cost, true)}</td>
+                          <td className="py-2.5 px-3 text-right text-rose-600">-{formatKRW(day.fees, true)}</td>
+                          <td className="py-2.5 px-3 text-right text-slate-600">{formatKRW(day.packagingTotal + day.actualShippingTotal, true)}</td>
+                          <td className="py-2.5 px-4 text-right font-extrabold text-indigo-700 text-sm bg-indigo-50/30">
+                            {formatKRW(day.netProfit, true)}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${
+                              day.marginRate >= 30 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {day.marginRate}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+
+                {activePlatformMonthFilter &&
+                  activePlatformMonthFilter.days.map((day) => (
+                    <tr key={day.date} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-2.5 px-4 font-bold text-slate-900 flex items-center">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2" />
+                        {day.date}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-medium">{day.orderCount}건</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatKRW(day.sales, true)}</td>
+                      <td className="py-2.5 px-3 text-right font-semibold text-emerald-700">{formatKRW(day.settlement, true)}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-600">{formatKRW(day.cost, true)}</td>
+                      <td className="py-2.5 px-3 text-right text-rose-600">-{formatKRW(day.fees, true)}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-600">{formatKRW(day.packagingTotal + day.actualShippingTotal, true)}</td>
+                      <td className="py-2.5 px-4 text-right font-extrabold text-indigo-700 text-sm bg-indigo-50/30">
+                        {formatKRW(day.netProfit, true)}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${
+                          day.marginRate >= 30 ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {day.marginRate}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
               {/* Summary Footer */}
               <tfoot className="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900">
-                <tr>
-                  <td className="py-2.5 px-4">[{platformConfig.shortName}] 기간 합계</td>
-                  <td className="py-2.5 px-3 text-center">{platformOrders.length}건</td>
-                  <td className="py-2.5 px-3 text-right text-slate-900">{formatKRW(platformTotals.sales, true)}</td>
-                  <td className="py-2.5 px-3 text-right text-emerald-800">{formatKRW(platformTotals.settlement, true)}</td>
-                  <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(platformTotals.cost, true)}</td>
-                  <td className="py-2.5 px-3 text-right text-rose-700">-{formatKRW(platformTotals.fees, true)}</td>
-                  <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(platformTotals.shippingPkg, true)}</td>
-                  <td className="py-2.5 px-4 text-right text-indigo-900 text-sm bg-indigo-100/50">
-                    {formatKRW(platformTotals.netProfit, true)}
-                  </td>
-                  <td className="py-2.5 px-3 text-center text-indigo-900">
-                    {platformTotals.margin}%
-                  </td>
-                </tr>
+                {activePlatformMonthFilter ? (
+                  <tr>
+                    <td className="py-2.5 px-4">[{platformConfig.shortName}] {activePlatformMonthFilter.label} 합계</td>
+                    <td className="py-2.5 px-3 text-center">{activePlatformMonthFilter.orderCount}건</td>
+                    <td className="py-2.5 px-3 text-right text-slate-900">{formatKRW(activePlatformMonthFilter.sales, true)}</td>
+                    <td className="py-2.5 px-3 text-right text-emerald-800">{formatKRW(activePlatformMonthFilter.settlement, true)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(activePlatformMonthFilter.cost, true)}</td>
+                    <td className="py-2.5 px-3 text-right text-rose-700">-{formatKRW(activePlatformMonthFilter.fees, true)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(activePlatformMonthFilter.packagingTotal + activePlatformMonthFilter.actualShippingTotal, true)}</td>
+                    <td className="py-2.5 px-4 text-right text-indigo-900 text-sm bg-indigo-100/50">
+                      {formatKRW(activePlatformMonthFilter.netProfit, true)}
+                    </td>
+                    <td className="py-2.5 px-3 text-center text-indigo-900">
+                      {activePlatformMonthFilter.marginRate}%
+                    </td>
+                  </tr>
+                ) : (
+                  <tr>
+                    <td className="py-2.5 px-4">[{platformConfig.shortName}] 전체 기간 합계</td>
+                    <td className="py-2.5 px-3 text-center">{platformOrders.length}건</td>
+                    <td className="py-2.5 px-3 text-right text-slate-900">{formatKRW(platformTotals.sales, true)}</td>
+                    <td className="py-2.5 px-3 text-right text-emerald-800">{formatKRW(platformTotals.settlement, true)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(platformTotals.cost, true)}</td>
+                    <td className="py-2.5 px-3 text-right text-rose-700">-{formatKRW(platformTotals.fees, true)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-700">{formatKRW(platformTotals.shippingPkg, true)}</td>
+                    <td className="py-2.5 px-4 text-right text-indigo-900 text-sm bg-indigo-100/50">
+                      {formatKRW(platformTotals.netProfit, true)}
+                    </td>
+                    <td className="py-2.5 px-3 text-center text-indigo-900">
+                      {platformTotals.margin}%
+                    </td>
+                  </tr>
+                )}
               </tfoot>
             </table>
           </div>
