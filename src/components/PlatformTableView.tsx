@@ -690,11 +690,11 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
           <table className="min-w-full text-xs text-left border-collapse">
             <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10 border-b border-slate-300 shadow-xs">
               <tr className="divide-x divide-slate-300">
-                <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100 text-amber-900 border-r border-slate-300 w-[95px] min-w-[95px] max-w-[95px]" style={{ position: 'sticky', left: 0, top: 0, zIndex: 40 }}>날짜</th>
+                <th className="py-2.5 px-1.5 whitespace-nowrap bg-amber-100 text-amber-900 border-r border-slate-300 w-[76px] min-w-[76px] max-w-[76px]" style={{ position: 'sticky', left: 0, top: 0, zIndex: 40 }}>날짜</th>
                 <th 
                   onClick={() => handleSortToggle('productName')}
-                  className="py-2.5 px-4 w-[260px] min-w-[260px] max-w-[260px] bg-amber-200 text-amber-950 cursor-pointer hover:bg-amber-300 border-r border-slate-300 shadow-2xs"
-                  style={{ position: 'sticky', left: 95, top: 0, zIndex: 40 }}
+                  className="py-2.5 px-2 w-[200px] min-w-[200px] max-w-[200px] bg-amber-200 text-amber-950 cursor-pointer hover:bg-amber-300 border-r border-slate-300 shadow-2xs"
+                  style={{ position: 'sticky', left: 76, top: 0, zIndex: 40 }}
                   title="클릭하여 상품명 정렬"
                 >
                   <div className="flex items-center justify-between">
@@ -706,63 +706,59 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                     )}
                   </div>
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap w-[150px] min-w-[150px] max-w-[150px] bg-amber-100 text-amber-950 border-r-2 border-slate-400 shadow-sm" style={{ position: 'sticky', left: 355, top: 0, zIndex: 40 }}>
+                <th className="py-2.5 px-1.5 whitespace-nowrap w-[96px] min-w-[96px] max-w-[96px] bg-amber-100 text-amber-950 border-r border-slate-300" style={{ position: 'sticky', left: 276, top: 0, zIndex: 40 }}>
                   옵션명 📌
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100/70 text-amber-900">주문번호</th>
-                {platform === 'smartstore' && (
-                  <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100/70 text-amber-900">상품번호</th>
-                )}
-                <th className="py-2.5 px-2.5 whitespace-nowrap text-center bg-amber-100/70 text-amber-900">
-                  수량
+                <th className="py-2.5 px-1 whitespace-nowrap text-center w-[44px] min-w-[44px] max-w-[44px] bg-amber-200/90 text-amber-950 font-extrabold border-r-2 border-slate-400 shadow-sm" style={{ position: 'sticky', left: 372, top: 0, zIndex: 40 }}>
+                  수량📌
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap text-right bg-amber-100/70 text-amber-900">
+                <th className="py-2.5 px-1.5 whitespace-nowrap text-right bg-amber-100/70 text-amber-900">
                   판매금액(단가)
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap bg-amber-100/70 text-amber-900">
+                <th className="py-2.5 px-1.5 whitespace-nowrap bg-amber-100/70 text-amber-900">
                   수취인
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap text-right bg-amber-200/70 text-amber-950">
+                <th className="py-2.5 px-1.5 whitespace-nowrap text-right bg-amber-200/70 text-amber-950">
                   고객배송비
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap text-right bg-amber-100/70 text-amber-900">
+                <th className="py-2.5 px-1.5 whitespace-nowrap text-right bg-amber-100/70 text-amber-900">
                   수수료
                 </th>
                 {platform === 'smartstore' && (
-                  <th className="py-2.5 px-3 whitespace-nowrap text-right bg-amber-100/70 text-amber-900">
+                  <th className="py-2.5 px-1.5 whitespace-nowrap text-right bg-amber-100/70 text-amber-900">
                     지식쇼핑(2%)
                   </th>
                 )}
-                <th className="py-2.5 px-3 whitespace-nowrap text-right bg-amber-200/80 text-amber-950 font-extrabold">
+                <th className="py-2.5 px-2 whitespace-nowrap text-right bg-amber-200/80 text-amber-950 font-extrabold">
                   정산금액(정산가)
                 </th>
                 {/* Cost Columns (Pink highlight like Excel) */}
-                <th className="py-2.5 px-3 whitespace-nowrap text-right bg-rose-100 text-rose-950 font-bold border-l-2 border-rose-300">
+                <th className="py-2.5 px-2 whitespace-nowrap text-right bg-rose-200/90 text-rose-950 font-extrabold border-l-2 border-rose-400">
                   매입원가
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap text-right bg-rose-100 text-rose-950 font-bold">
+                <th className="py-2.5 px-2 whitespace-nowrap text-right bg-rose-200/90 text-rose-950 font-extrabold border-r-2 border-rose-400">
                   원가합계
                 </th>
                 {/* Expenses (Packaging, Actual Shipping) */}
-                <th className="py-2.5 px-2.5 whitespace-nowrap text-right bg-indigo-50 text-indigo-900">
+                <th className="py-2.5 px-2 whitespace-nowrap text-right bg-indigo-50 text-indigo-900">
                   포장비
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap text-right bg-indigo-50 text-indigo-900">
+                <th className="py-2.5 px-2 whitespace-nowrap text-right bg-indigo-50 text-indigo-900">
                   실택배비
                 </th>
                 {/* Profit & Taxes (Orange/Blue highlight like Excel) */}
-                <th className="py-2.5 px-3 whitespace-nowrap text-right bg-amber-200 text-amber-950 font-bold">
+                <th className="py-2.5 px-2 whitespace-nowrap text-right bg-amber-200 text-amber-950 font-bold">
                   순익(공헌)
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap text-right bg-sky-100 text-sky-950">
+                <th className="py-2.5 px-2 whitespace-nowrap text-right bg-sky-100 text-sky-950">
                   부가세제외
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap text-right bg-sky-100 text-sky-950">
+                <th className="py-2.5 px-2 whitespace-nowrap text-right bg-sky-100 text-sky-950">
                   종합소득세({settings.defaultIncomeTaxRate}%)
                 </th>
                 <th 
                   onClick={() => handleSortToggle('netProfit')}
-                  className="py-2.5 px-4 whitespace-nowrap text-right bg-blue-200 text-blue-950 font-black text-sm cursor-pointer hover:bg-blue-300 transition-colors"
+                  className="py-2.5 px-3 whitespace-nowrap text-right bg-blue-200 text-blue-950 font-black text-sm cursor-pointer hover:bg-blue-300 transition-colors"
                   title="클릭하여 순수익 높은순/낮은순 정렬"
                 >
                   <div className="flex items-center justify-end space-x-1">
@@ -776,7 +772,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                 </th>
                 <th 
                   onClick={() => handleSortToggle('marginRate')}
-                  className="py-2.5 px-3 whitespace-nowrap text-center bg-blue-100 text-blue-900 font-bold cursor-pointer hover:bg-blue-200 transition-colors"
+                  className="py-2.5 px-2 whitespace-nowrap text-center bg-blue-100 text-blue-900 font-bold cursor-pointer hover:bg-blue-200 transition-colors"
                   title="클릭하여 마진율 높은순/낮은순 정렬"
                 >
                   <div className="flex items-center justify-center space-x-1">
@@ -788,6 +784,10 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                     )}
                   </div>
                 </th>
+                <th className="py-2.5 px-2 whitespace-nowrap bg-slate-100 text-slate-600">주문번호</th>
+                {platform === 'smartstore' && (
+                  <th className="py-2.5 px-2 whitespace-nowrap bg-slate-100 text-slate-600">상품번호</th>
+                )}
                 <th className="py-2.5 px-2 whitespace-nowrap text-center bg-slate-200 text-slate-700">
                   관리
                 </th>
@@ -812,10 +812,10 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                       key={ord.id}
                       className={`divide-x divide-slate-200 hover:bg-amber-50/50 ${cellBg}`}
                     >
-                      {/* 1. Date */}
+                      {/* 1. Date (Sticky) */}
                       <td
                         onClick={() => handleStartEdit(ord, 'orderDate', ord.orderDate)}
-                        className={`py-2 px-3 whitespace-nowrap font-medium text-slate-900 hover:bg-yellow-50 cursor-pointer border-r border-slate-300 w-[95px] min-w-[95px] max-w-[95px] ${cellBg}`}
+                        className={`py-2 px-1.5 whitespace-nowrap font-medium text-[11px] text-slate-900 hover:bg-yellow-50 cursor-pointer border-r border-slate-300 w-[76px] min-w-[76px] max-w-[76px] ${cellBg}`}
                         style={{ position: 'sticky', left: 0, zIndex: 20 }}
                         title="클릭하여 날짜 수정"
                       >
@@ -827,7 +827,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             onBlur={() => handleSaveEdit(ord)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(ord)}
                             autoFocus
-                            className="w-24 text-xs p-1 border rounded bg-white text-slate-900 font-bold"
+                            className="w-18 text-xs p-0.5 border rounded bg-white text-slate-900 font-bold"
                           />
                         ) : (
                           ord.orderDate
@@ -837,8 +837,8 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                       {/* 2. Product Name (Sticky) */}
                       <td
                         onClick={() => handleStartEdit(ord, 'productName', ord.productName)}
-                        className={`py-2 px-3 text-slate-900 w-[260px] min-w-[260px] max-w-[260px] border-r border-slate-300 hover:bg-yellow-50 cursor-pointer ${cellBg}`}
-                        style={{ position: 'sticky', left: 95, zIndex: 20 }}
+                        className={`py-2 px-2 text-slate-900 w-[200px] min-w-[200px] max-w-[200px] border-r border-slate-300 hover:bg-yellow-50 cursor-pointer ${cellBg}`}
+                        style={{ position: 'sticky', left: 76, zIndex: 20 }}
                         title={ord.productName}
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'productName' ? (
@@ -853,25 +853,22 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                           />
                         ) : (
                           <div>
-                            <div className="flex items-center space-x-1.5 flex-wrap">
-                              <span className="font-bold text-slate-900 break-words leading-snug">{ord.productName}</span>
+                            <div className="flex items-center space-x-1 flex-wrap">
+                              <span className="font-bold text-slate-900 break-words leading-snug text-[11.5px]">{ord.productName}</span>
                               {platform === 'coupang' && ord.feeRate === 6 && (
-                                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0">
+                                <span className="px-1 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0">
                                   쌀 6%
                                 </span>
                               )}
                               {platform === 'coupang' && (ord.feeRate === 11.66 || /누룽지/.test(ord.productName)) && (
-                                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-orange-100 text-orange-800 shrink-0" title="부가세별도 10.6% (부가세포함 11.66%)">
+                                <span className="px-1 py-0.2 rounded text-[10px] font-bold bg-orange-100 text-orange-800 shrink-0" title="부가세별도 10.6% (부가세포함 11.66%)">
                                   누룽지 11.66%
                                 </span>
                               )}
                             </div>
-                            {/* Option & Net Profit Badges directly under Product Name */}
-                            <div className="mt-1 flex items-center space-x-1 flex-wrap gap-y-1">
-                              <span className="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-200 text-[10px] shrink-0">
-                                옵션: {ord.optionName || '기본'}
-                              </span>
-                              <span className={`inline-flex items-center text-[10.5px] font-black px-2 py-0.5 rounded-full border shadow-2xs ${
+                            {/* Net Profit Badge directly under Product Name */}
+                            <div className="mt-1 flex items-center space-x-1 flex-wrap gap-y-0.5">
+                              <span className={`inline-flex items-center text-[10px] font-black px-1.5 py-0.2 rounded-full border shadow-2xs ${
                                 ord.netProfit > 0
                                   ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
                                   : ord.netProfit < 0
@@ -888,8 +885,8 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                       {/* 3. Option Name (Sticky) */}
                       <td
                         onClick={() => handleStartEdit(ord, 'optionName', ord.optionName)}
-                        className={`py-2 px-3 font-semibold text-slate-800 w-[150px] min-w-[150px] max-w-[150px] break-words hover:bg-yellow-50 cursor-pointer border-r-2 border-slate-400 shadow-xs ${cellBg}`}
-                        style={{ position: 'sticky', left: 355, zIndex: 20 }}
+                        className={`py-2 px-1.5 font-semibold text-slate-800 w-[96px] min-w-[96px] max-w-[96px] break-words hover:bg-yellow-50 cursor-pointer border-r border-slate-300 ${cellBg}`}
+                        style={{ position: 'sticky', left: 276, zIndex: 20 }}
                         title={ord.optionName}
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'optionName' ? (
@@ -903,28 +900,18 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             className="w-full text-xs p-1 border rounded bg-white font-bold"
                           />
                         ) : (
-                          <span className="px-2 py-0.5 rounded bg-slate-100/90 text-slate-800 border border-slate-200 font-medium text-[11px]">
+                          <span className="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-300 font-bold text-[10.5px] leading-tight break-all">
                             {ord.optionName || '기본'}
                           </span>
                         )}
                       </td>
 
-                      {/* 4. Order Number */}
-                      <td className={`py-2 px-3 whitespace-nowrap font-mono text-[11px] text-slate-600 ${cellBg}`}>
-                        {ord.orderNumber}
-                      </td>
-
-                      {/* 5. Product Number (for smartstore) */}
-                      {platform === 'smartstore' && (
-                        <td className={`py-2 px-3 whitespace-nowrap font-mono text-[11px] text-slate-500 ${cellBg}`}>
-                          {ord.productNumber || '-'}
-                        </td>
-                      )}
-
-                      {/* 6. Quantity */}
+                      {/* 4. Quantity (Sticky right next to Option Name!) */}
                       <td
                         onClick={() => handleStartEdit(ord, 'quantity', ord.quantity)}
-                        className="py-2 px-2.5 text-center font-bold text-slate-900 hover:bg-yellow-50 cursor-pointer"
+                        className={`py-2 px-1 text-center font-black w-[44px] min-w-[44px] max-w-[44px] hover:bg-yellow-50 cursor-pointer border-r-2 border-slate-400 shadow-xs ${cellBg}`}
+                        style={{ position: 'sticky', left: 372, zIndex: 20 }}
+                        title="클릭하여 수량 수정"
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'quantity' ? (
                           <input
@@ -934,17 +921,25 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             onBlur={() => handleSaveEdit(ord)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(ord)}
                             autoFocus
-                            className="w-12 text-xs p-1 border rounded bg-white text-center"
+                            className="w-9 text-xs p-0.5 border rounded bg-white text-center font-bold"
                           />
                         ) : (
-                          ord.quantity
+                          <span
+                            className={`inline-flex items-center justify-center min-w-[22px] px-1 py-0.5 rounded text-xs font-black ${
+                              ord.quantity > 1
+                                ? 'bg-amber-500 text-white shadow-2xs ring-2 ring-amber-200'
+                                : 'bg-slate-100 text-slate-900 border border-slate-200'
+                            }`}
+                          >
+                            {ord.quantity}
+                          </span>
                         )}
                       </td>
 
-                      {/* 7. Selling Price (단가 / 옵션+판매가) */}
+                      {/* 5. Selling Price (단가 / 옵션+판매가) */}
                       <td
                         onClick={() => handleStartEdit(ord, 'unitPrice', ord.unitPrice)}
-                        className="py-2 px-3 text-right font-semibold text-slate-900 hover:bg-yellow-50 cursor-pointer"
+                        className="py-2 px-1.5 text-right font-semibold text-slate-900 hover:bg-yellow-50 cursor-pointer whitespace-nowrap"
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'unitPrice' ? (
                           <input
@@ -954,17 +949,17 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             onBlur={() => handleSaveEdit(ord)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(ord)}
                             autoFocus
-                            className="w-20 text-xs p-1 border rounded bg-white text-right"
+                            className="w-18 text-xs p-1 border rounded bg-white text-right"
                           />
                         ) : (
                           formatKRW(ord.unitPrice)
                         )}
                       </td>
 
-                      {/* 8. Recipient */}
+                      {/* 6. Recipient */}
                       <td
                         onClick={() => handleStartEdit(ord, 'recipient', ord.recipient)}
-                        className="py-2 px-3 whitespace-nowrap hover:bg-yellow-50 cursor-pointer"
+                        className="py-2 px-1.5 whitespace-nowrap hover:bg-yellow-50 cursor-pointer"
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'recipient' ? (
                           <input
@@ -974,7 +969,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             onBlur={() => handleSaveEdit(ord)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(ord)}
                             autoFocus
-                            className="w-20 text-xs p-1 border rounded bg-white"
+                            className="w-18 text-xs p-1 border rounded bg-white"
                           />
                         ) : (
                           <div className="flex items-center space-x-1">
@@ -982,7 +977,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             {ord.isBundleShipping && (
                               <span
                                 title="동일고객 합배송 묶음"
-                                className={`text-[10px] px-1 py-0.2 rounded font-bold ${
+                                className={`text-[9.5px] px-1 py-0.2 rounded font-bold ${
                                   isBundleSub
                                     ? 'bg-purple-100 text-purple-700'
                                     : 'bg-indigo-100 text-indigo-700'
@@ -995,10 +990,10 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                         )}
                       </td>
 
-                      {/* 9. Buyer Shipping Fee */}
+                      {/* 7. Buyer Shipping Fee */}
                       <td
                         onClick={() => handleStartEdit(ord, 'buyerShippingFee', ord.buyerShippingFee)}
-                        className="py-2 px-3 text-right font-medium hover:bg-yellow-50 cursor-pointer text-slate-800"
+                        className="py-2 px-1.5 text-right font-medium hover:bg-yellow-50 cursor-pointer text-slate-800 whitespace-nowrap"
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'buyerShippingFee' ? (
                           <input
@@ -1008,7 +1003,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             onBlur={() => handleSaveEdit(ord)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(ord)}
                             autoFocus
-                            className="w-16 text-xs p-1 border rounded bg-white text-right"
+                            className="w-14 text-xs p-1 border rounded bg-white text-right"
                           />
                         ) : ord.buyerShippingFee === 0 ? (
                           <span className="text-slate-400">무료</span>
@@ -1017,10 +1012,10 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                         )}
                       </td>
 
-                      {/* 10. Fee */}
+                      {/* 8. Fee */}
                       <td
                         onClick={() => handleStartEdit(ord, 'feeAmount', ord.feeAmount)}
-                        className="py-2 px-3 text-right text-rose-600 font-medium hover:bg-yellow-50 cursor-pointer"
+                        className="py-2 px-1.5 text-right text-rose-600 font-medium hover:bg-yellow-50 cursor-pointer whitespace-nowrap"
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'feeAmount' ? (
                           <input
@@ -1030,18 +1025,18 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             onBlur={() => handleSaveEdit(ord)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(ord)}
                             autoFocus
-                            className="w-16 text-xs p-1 border rounded bg-white text-right"
+                            className="w-14 text-xs p-1 border rounded bg-white text-right"
                           />
                         ) : (
                           `-${formatKRW(Math.abs(ord.feeAmount))}`
                         )}
                       </td>
 
-                      {/* 11. Smartstore Knowledge shopping fee */}
+                      {/* 9. Smartstore Knowledge shopping fee */}
                       {platform === 'smartstore' && (
                         <td
                           onClick={() => handleStartEdit(ord, 'knowledgeShoppingFee', ord.knowledgeShoppingFee)}
-                          className="py-2 px-3 text-right text-rose-600 font-medium hover:bg-yellow-50 cursor-pointer"
+                          className="py-2 px-1.5 text-right text-rose-600 font-medium hover:bg-yellow-50 cursor-pointer whitespace-nowrap"
                         >
                           {editingCell?.id === ord.id && editingCell?.field === 'knowledgeShoppingFee' ? (
                             <input
@@ -1051,7 +1046,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                               onBlur={() => handleSaveEdit(ord)}
                               onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(ord)}
                               autoFocus
-                              className="w-16 text-xs p-1 border rounded bg-white text-right"
+                              className="w-14 text-xs p-1 border rounded bg-white text-right"
                             />
                           ) : (
                             `-${formatKRW(Math.abs(ord.knowledgeShoppingFee || 0))}`
@@ -1059,10 +1054,10 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                         </td>
                       )}
 
-                      {/* 12. Settlement Amount */}
+                      {/* 10. Settlement Amount */}
                       <td
                         onClick={() => handleStartEdit(ord, 'settlementAmount', ord.settlementAmount)}
-                        className="py-2 px-3 text-right font-bold text-emerald-800 bg-emerald-50/40 hover:bg-emerald-100 cursor-pointer"
+                        className="py-2 px-2 text-right font-bold text-emerald-800 bg-emerald-50/40 hover:bg-emerald-100 cursor-pointer whitespace-nowrap"
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'settlementAmount' ? (
                           <input
@@ -1072,17 +1067,17 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             onBlur={() => handleSaveEdit(ord)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(ord)}
                             autoFocus
-                            className="w-20 text-xs p-1 border rounded bg-white text-right font-bold"
+                            className="w-18 text-xs p-1 border rounded bg-white text-right font-bold"
                           />
                         ) : (
                           formatKRW(ord.settlementAmount)
                         )}
                       </td>
 
-                      {/* 13. Unit Cost (Pink) */}
+                      {/* 11. Unit Cost (Pink - Highlighted) */}
                       <td
                         onClick={() => handleStartEdit(ord, 'unitCost', ord.unitCost)}
-                        className="py-2 px-3 text-right bg-rose-50/80 hover:bg-rose-100 cursor-pointer"
+                        className="py-2 px-2 text-right bg-rose-50 hover:bg-rose-100 cursor-pointer whitespace-nowrap border-l-2 border-rose-300"
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'unitCost' ? (
                           <input
@@ -1095,29 +1090,29 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             className="w-16 text-xs p-1 border rounded bg-white text-right font-bold text-rose-900"
                           />
                         ) : ord.unitCost > 0 ? (
-                          <span className="font-bold text-rose-900">{formatKRW(ord.unitCost)}</span>
+                          <span className="font-extrabold text-rose-900 text-xs">{formatKRW(ord.unitCost)}</span>
                         ) : (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onOpenQuickCostModal(ord);
                             }}
-                            className="px-2 py-0.5 rounded text-[10.5px] font-extrabold bg-rose-600 text-white hover:bg-rose-700 shadow-2xs cursor-pointer"
+                            className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-600 text-white hover:bg-rose-700 shadow-2xs cursor-pointer"
                           >
                             원가입력
                           </button>
                         )}
                       </td>
 
-                      {/* 14. Total Cost (Pink) */}
-                      <td className="py-2 px-3 text-right bg-rose-50/80 font-bold text-rose-900">
+                      {/* 12. Total Cost (Pink - Highlighted) */}
+                      <td className="py-2 px-2 text-right bg-rose-100/70 font-black text-rose-950 text-xs whitespace-nowrap border-r-2 border-rose-300">
                         {formatKRW(ord.totalCost)}
                       </td>
 
-                      {/* 15. Packaging Cost */}
+                      {/* 13. Packaging Cost */}
                       <td
                         onClick={() => handleStartEdit(ord, 'packagingCost', ord.packagingCost)}
-                        className="py-2 px-2.5 text-right text-slate-600 hover:bg-indigo-100 cursor-pointer bg-slate-50/50"
+                        className="py-2 px-2 text-right text-slate-600 hover:bg-indigo-100 cursor-pointer bg-slate-50/50 whitespace-nowrap"
                       >
                         {editingCell?.id === ord.id && editingCell?.field === 'packagingCost' ? (
                           <input
@@ -1134,10 +1129,10 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                         )}
                       </td>
 
-                      {/* 16. Actual Shipping Cost (Highlight bundle 0 won) */}
+                      {/* 14. Actual Shipping Cost (Highlight bundle 0 won) */}
                       <td
                         onClick={() => handleStartEdit(ord, 'actualShippingCost', ord.actualShippingCost)}
-                        className={`py-2 px-3 text-right hover:bg-indigo-100 cursor-pointer ${
+                        className={`py-2 px-2 text-right hover:bg-indigo-100 cursor-pointer whitespace-nowrap ${
                           isBundleSub ? 'bg-purple-50 font-bold text-purple-700' : 'bg-slate-50/50 text-slate-700'
                         }`}
                       >
@@ -1158,28 +1153,28 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                         )}
                       </td>
 
-                      {/* 17. Gross Profit (Orange) */}
-                      <td className="py-2 px-3 text-right font-bold text-amber-900 bg-amber-50">
+                      {/* 15. Gross Profit (Orange) */}
+                      <td className="py-2 px-2 text-right font-bold text-amber-900 bg-amber-50 whitespace-nowrap">
                         {formatKRW(ord.grossProfit)}
                       </td>
 
-                      {/* 18. VAT Deducted Profit (Blue) */}
-                      <td className="py-2 px-3 text-right font-semibold text-slate-800 bg-sky-50/60">
+                      {/* 16. VAT Deducted Profit (Blue) */}
+                      <td className="py-2 px-2 text-right font-semibold text-slate-800 bg-sky-50/60 whitespace-nowrap">
                         {formatKRW(ord.vatDeductedProfit)}
                       </td>
 
-                      {/* 19. Income Tax */}
-                      <td className="py-2 px-3 text-right text-rose-600 bg-sky-50/60">
+                      {/* 17. Income Tax */}
+                      <td className="py-2 px-2 text-right text-rose-600 bg-sky-50/60 whitespace-nowrap">
                         -{formatKRW(ord.incomeTax)}
                       </td>
 
-                      {/* 20. Net Profit (Final) */}
-                      <td className="py-2 px-4 text-right font-black text-indigo-700 text-sm bg-indigo-50/60">
+                      {/* 18. Net Profit (Final) */}
+                      <td className="py-2 px-3 text-right font-black text-indigo-700 text-sm bg-indigo-50/60 whitespace-nowrap">
                         {formatKRW(ord.netProfit)}
                       </td>
 
-                      {/* 21. Margin Rate */}
-                      <td className="py-2 px-3 text-center bg-blue-50/50">
+                      {/* 19. Margin Rate */}
+                      <td className="py-2 px-2 text-center bg-blue-50/50 whitespace-nowrap">
                         <span className={`px-1.5 py-0.5 rounded font-black text-[11px] ${
                           ord.marginRate >= 40
                             ? 'bg-emerald-100 text-emerald-800'
@@ -1190,6 +1185,18 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                           {ord.marginRate}%
                         </span>
                       </td>
+
+                      {/* 20. Order Number (Moved to right so key columns fit on one screen) */}
+                      <td className={`py-2 px-2 whitespace-nowrap font-mono text-[11px] text-slate-500 ${cellBg}`}>
+                        {ord.orderNumber}
+                      </td>
+
+                      {/* 21. Product Number (for smartstore) */}
+                      {platform === 'smartstore' && (
+                        <td className={`py-2 px-2 whitespace-nowrap font-mono text-[11px] text-slate-400 ${cellBg}`}>
+                          {ord.productNumber || '-'}
+                        </td>
+                      )}
 
                       {/* 22. Actions */}
                       <td className="py-2 px-2 text-center whitespace-nowrap bg-slate-50">
@@ -1211,41 +1218,41 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
             {filteredOrders.length > 0 && (
               <tfoot className="bg-amber-200/90 text-slate-950 font-black border-t-2 border-slate-400 sticky bottom-0 z-10 shadow-md">
                 <tr className="divide-x divide-slate-400">
-                  <td className="py-3 px-3 bg-amber-200 border-r border-slate-400 w-[95px] min-w-[95px] max-w-[95px]" style={{ position: 'sticky', left: 0, zIndex: 30 }}>합계 ({filteredOrders.length}건)</td>
-                  <td className="py-3 px-4 font-extrabold text-slate-900 bg-amber-200 border-r border-slate-400 w-[260px] min-w-[260px] max-w-[260px]" style={{ position: 'sticky', left: 95, zIndex: 30 }}>전체 품목 합계</td>
-                  <td className="py-3 px-3 bg-amber-200 border-r-2 border-slate-400 w-[150px] min-w-[150px] max-w-[150px] shadow-xs" style={{ position: 'sticky', left: 355, zIndex: 30 }}>-</td>
-                  <td className="py-3 px-3">-</td>
-                  {platform === 'smartstore' && <td className="py-3 px-3">-</td>}
-                  <td className="py-3 px-2.5 text-center">
+                  <td className="py-3 px-1.5 bg-amber-200 border-r border-slate-400 w-[76px] min-w-[76px] max-w-[76px] text-[10.5px]" style={{ position: 'sticky', left: 0, zIndex: 30 }}>합계 ({filteredOrders.length}건)</td>
+                  <td className="py-3 px-2 font-extrabold text-slate-900 bg-amber-200 border-r border-slate-400 w-[200px] min-w-[200px] max-w-[200px]" style={{ position: 'sticky', left: 76, zIndex: 30 }}>전체 품목 합계</td>
+                  <td className="py-3 px-1.5 bg-amber-200 border-r border-slate-400 w-[96px] min-w-[96px] max-w-[96px]" style={{ position: 'sticky', left: 276, zIndex: 30 }}>-</td>
+                  <td className="py-3 px-1 text-center bg-amber-300/90 border-r-2 border-slate-400 w-[44px] min-w-[44px] max-w-[44px] shadow-xs" style={{ position: 'sticky', left: 372, zIndex: 30 }}>
                     {filteredOrders.reduce((s, o) => s + o.quantity, 0)}
                   </td>
-                  <td className="py-3 px-3 text-right">{formatKRW(sumProductSales)}</td>
-                  <td className="py-3 px-3">-</td>
-                  <td className="py-3 px-3 text-right">{formatKRW(sumBuyerShipping)}</td>
-                  <td className="py-3 px-3 text-right text-rose-800">-{formatKRW(sumFees)}</td>
+                  <td className="py-3 px-1.5 text-right">{formatKRW(sumProductSales)}</td>
+                  <td className="py-3 px-1.5">-</td>
+                  <td className="py-3 px-1.5 text-right">{formatKRW(sumBuyerShipping)}</td>
+                  <td className="py-3 px-1.5 text-right text-rose-800">-{formatKRW(sumFees)}</td>
                   {platform === 'smartstore' && (
-                    <td className="py-3 px-3 text-right text-rose-800">
+                    <td className="py-3 px-1.5 text-right text-rose-800">
                       -{formatKRW(filteredOrders.reduce((s, o) => s + (o.knowledgeShoppingFee || 0), 0))}
                     </td>
                   )}
-                  <td className="py-3 px-3 text-right text-emerald-950 font-black">
+                  <td className="py-3 px-2 text-right text-emerald-950 font-black">
                     {formatKRW(sumSettlement)}
                   </td>
-                  <td className="py-3 px-3 text-right text-rose-950">-</td>
-                  <td className="py-3 px-3 text-right text-rose-950 font-black">
+                  <td className="py-3 px-2 text-right text-rose-950 bg-rose-200/80 border-l-2 border-rose-400">-</td>
+                  <td className="py-3 px-2 text-right text-rose-950 font-black bg-rose-200/80 border-r-2 border-rose-400">
                     {formatKRW(sumTotalCost)}
                   </td>
-                  <td className="py-3 px-2.5 text-right">{formatKRW(sumPackaging)}</td>
-                  <td className="py-3 px-3 text-right">{formatKRW(sumActualShipping)}</td>
-                  <td className="py-3 px-3 text-right font-black">{formatKRW(sumGrossProfit)}</td>
-                  <td className="py-3 px-3 text-right">{formatKRW(sumVatDeducted)}</td>
-                  <td className="py-3 px-3 text-right text-rose-800">-{formatKRW(sumIncomeTax)}</td>
-                  <td className="py-3 px-4 text-right text-indigo-950 text-base font-black bg-indigo-200">
+                  <td className="py-3 px-2 text-right">{formatKRW(sumPackaging)}</td>
+                  <td className="py-3 px-2 text-right">{formatKRW(sumActualShipping)}</td>
+                  <td className="py-3 px-2 text-right font-black">{formatKRW(sumGrossProfit)}</td>
+                  <td className="py-3 px-2 text-right">{formatKRW(sumVatDeducted)}</td>
+                  <td className="py-3 px-2 text-right text-rose-800">-{formatKRW(sumIncomeTax)}</td>
+                  <td className="py-3 px-3 text-right text-indigo-950 text-base font-black bg-indigo-200">
                     {formatKRW(sumNetProfit, true)}
                   </td>
-                  <td className="py-3 px-3 text-center text-sm font-black bg-blue-200">
+                  <td className="py-3 px-2 text-center text-sm font-black bg-blue-200">
                     {avgMargin}%
                   </td>
+                  <td className="py-3 px-2 text-center">-</td>
+                  {platform === 'smartstore' && <td className="py-3 px-2 text-center">-</td>}
                   <td className="py-3 px-2 text-center">-</td>
                 </tr>
               </tfoot>
