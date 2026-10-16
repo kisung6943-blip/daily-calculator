@@ -34,7 +34,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType | 'auto'>('auto');
   const [useCustomDate, setUseCustomDate] = useState(false);
   const [targetDate, setTargetDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedPreview, setParsedPreview] = useState<{
     orders: OrderItem[];
@@ -47,23 +47,32 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleFileChange = async (incomingFile: File, overrideCustomDate?: boolean, dateValue?: string) => {
-    setFile(incomingFile);
+  const handleFilesChange = async (incomingFiles: File[], overrideCustomDate?: boolean, dateValue?: string, overridePlatform?: PlatformType | 'auto') => {
+    if (!incomingFiles || incomingFiles.length === 0) return;
+    setFiles(incomingFiles);
     setErrorMsg(null);
     setIsProcessing(true);
 
     const isCustom = overrideCustomDate !== undefined ? overrideCustomDate : useCustomDate;
     const dateToUse = isCustom ? (dateValue || targetDate) : undefined;
+    const platToUse = overridePlatform !== undefined ? overridePlatform : selectedPlatform;
 
     try {
-      const forced = selectedPlatform === 'auto' ? undefined : selectedPlatform;
-      const res = await parseExcelOrders(incomingFile, forced, settings, dateToUse);
-      
+      const forced = platToUse === 'auto' ? undefined : platToUse;
+      const allOrders: OrderItem[] = [];
+      let lastDetectedPlatform: PlatformType = 'smartstore';
+
+      for (const f of incomingFiles) {
+        const res = await parseExcelOrders(f, forced, settings, dateToUse);
+        allOrders.push(...res.orders);
+        lastDetectedPlatform = res.detectedPlatform;
+      }
+
       // Auto-match cost items & bundle delivery
-      const processed = processAllOrders(res.orders, costItems, settings);
+      const processed = processAllOrders(allOrders, costItems, settings);
       setParsedPreview({
         orders: processed,
-        detectedPlatform: res.detectedPlatform,
+        detectedPlatform: lastDetectedPlatform,
       });
     } catch (err: any) {
       console.error(err);
@@ -76,8 +85,8 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileChange(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFilesChange(Array.from(e.dataTransfer.files));
     }
   };
 
@@ -117,7 +126,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                   checked={!useCustomDate}
                   onChange={() => {
                     setUseCustomDate(false);
-                    if (file) handleFileChange(file, false, targetDate);
+                    if (files.length > 0) handleFilesChange(files, false, targetDate);
                   }}
                   className="text-indigo-600 focus:ring-indigo-500"
                 />
@@ -131,7 +140,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                   checked={useCustomDate}
                   onChange={() => {
                     setUseCustomDate(true);
-                    if (file) handleFileChange(file, true, targetDate);
+                    if (files.length > 0) handleFilesChange(files, true, targetDate);
                   }}
                   className="text-indigo-600 focus:ring-indigo-500"
                 />
@@ -145,7 +154,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                   onChange={(e) => {
                     const newD = e.target.value;
                     setTargetDate(newD);
-                    if (file) handleFileChange(file, true, newD);
+                    if (files.length > 0) handleFilesChange(files, true, newD);
                   }}
                   className="bg-white border border-indigo-300 rounded-lg px-2.5 py-1 text-xs font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500 shadow-xs cursor-pointer"
                 />
@@ -163,7 +172,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                 type="button"
                 onClick={() => {
                   setSelectedPlatform('auto');
-                  if (file) handleFileChange(file);
+                  if (files.length > 0) handleFilesChange(files, undefined, undefined, 'auto');
                 }}
                 className={`p-2 rounded-lg border text-center font-bold transition-all cursor-pointer ${
                   selectedPlatform === 'auto'
@@ -180,7 +189,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                   type="button"
                   onClick={() => {
                     setSelectedPlatform(p.id);
-                    if (file) handleFileChange(file);
+                    if (files.length > 0) handleFilesChange(files, undefined, undefined, p.id);
                   }}
                   className={`p-2 rounded-lg border text-center font-semibold transition-all cursor-pointer ${
                     selectedPlatform === p.id
@@ -203,15 +212,20 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
           >
             <FileSpreadsheet className="w-10 h-10 mx-auto text-indigo-500 mb-2" />
             <p className="font-bold text-slate-800 text-sm">
-              {file ? file.name : '엑셀 파일(.xlsx, .xls, .csv)을 드래그하거나 클릭하여 선택하세요'}
+              {files.length > 0
+                ? files.length === 1
+                  ? files[0].name
+                  : `${files[0].name} 외 ${files.length - 1}개 파일 선택됨`
+                : '엑셀 파일(.xlsx, .xls, .csv)을 여러 개 한꺼번에 드래그하거나 클릭하여 선택하세요'}
             </p>
             <p className="text-slate-500 text-[11px] mt-1">
-              스마트스토어, 쿠팡, 오늘의집, 자사몰, 11번가, G마켓, 옥션 원본 정산 엑셀 지원
+              스마트스토어, 쿠팡, 오늘의집, 자사몰, 11번가, G마켓, 옥션 원본 정산 엑셀 (다중 파일 동시 업로드 지원)
             </p>
             <input
               type="file"
+              multiple
               ref={fileInputRef}
-              onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])}
+              onChange={(e) => e.target.files && e.target.files.length > 0 && handleFilesChange(Array.from(e.target.files))}
               accept=".xlsx, .xls, .csv"
               className="hidden"
             />
