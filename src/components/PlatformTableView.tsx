@@ -964,7 +964,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                   수량📌
                 </th>
                 <th className="py-2.5 px-1.5 whitespace-nowrap text-right bg-amber-100/70 text-amber-900">
-                  판매금액(단가)
+                  판매금액(물품가액)
                 </th>
                 <th className="py-2.5 px-1.5 whitespace-nowrap bg-amber-100/70 text-amber-900">
                   수취인
@@ -1187,12 +1187,12 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                         )}
                       </td>
 
-                      {/* 5. Selling Price (단가 / 옵션+판매가) */}
+                      {/* 5. Selling Price (총주문금액 / 물품가액) */}
                       <td
-                        onClick={() => handleStartEdit(ord, 'unitPrice', ord.unitPrice)}
+                        onClick={() => handleStartEdit(ord, 'totalPrice', ord.totalPrice)}
                         className="py-2 px-1.5 text-right font-semibold text-slate-900 hover:bg-yellow-50 cursor-pointer whitespace-nowrap"
                       >
-                        {editingCell?.id === ord.id && editingCell?.field === 'unitPrice' ? (
+                        {editingCell?.id === ord.id && editingCell?.field === 'totalPrice' ? (
                           <input
                             type="number"
                             value={editValue}
@@ -1203,7 +1203,14 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
                             className="w-18 text-xs p-1 border rounded bg-white text-right"
                           />
                         ) : (
-                          formatKRW(ord.unitPrice)
+                          <div>
+                            <div>{formatKRW(ord.totalPrice)}</div>
+                            {ord.quantity > 1 && (
+                              <div className="text-[10px] text-slate-400 font-normal">
+                                (단가 {formatKRW(ord.unitPrice)})
+                              </div>
+                            )}
+                          </div>
                         )}
                       </td>
 
