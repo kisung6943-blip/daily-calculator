@@ -92,7 +92,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
     let sales = 0, settlement = 0, cost = 0, fees = 0, shippingPkg = 0, netProfit = 0;
     for (let i = 0; i < platformOrders.length; i++) {
       const o = platformOrders[i];
-      sales += (o.totalPrice + o.buyerShippingFee);
+      sales += o.totalPrice;
       settlement += o.settlementAmount;
       cost += o.totalCost;
       fees += (o.feeAmount + (o.knowledgeShoppingFee || 0));
@@ -177,7 +177,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
       const key = o.productName || '미지정 상품';
       const existing = map.get(key) || { productName: key, totalQty: 0, totalRevenue: 0, totalNetProfit: 0, avgMargin: 0 };
       existing.totalQty += o.quantity;
-      existing.totalRevenue += o.totalPrice + o.buyerShippingFee;
+      existing.totalRevenue += o.totalPrice;
       existing.totalNetProfit += o.netProfit;
       map.set(key, existing);
     });
@@ -222,7 +222,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
         map.set(date, entry);
       }
       entry.orderCount += 1;
-      entry.sales += (o.totalPrice + o.buyerShippingFee);
+      entry.sales += o.totalPrice;
       entry.settlement += o.settlementAmount;
       entry.cost += o.totalCost;
       entry.fees += (o.feeAmount + (o.knowledgeShoppingFee || 0));
@@ -346,7 +346,7 @@ export const PlatformTableView: React.FC<PlatformTableViewProps> = ({
 
     for (let i = 0; i < filteredOrders.length; i++) {
       const o = filteredOrders[i];
-      sales += (o.totalPrice + o.buyerShippingFee);
+      sales += o.totalPrice;
       productSales += o.totalPrice;
       buyerShipping += o.buyerShippingFee;
       fees += (o.feeAmount + (o.knowledgeShoppingFee || 0));

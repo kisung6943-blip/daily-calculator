@@ -209,8 +209,8 @@ export function recalculateOrder(
   // Net Profit (최종 순수익)
   const netProfit = Math.round(vatDeductedProfit - incomeTax);
 
-  // Margin Rate (%) = (순수익 / (총판매금액 + 고객배송비)) * 100
-  const totalRevenue = totalPrice + buyerShippingFee;
+  // Margin Rate (%) = (순수익 / 물품가액(배송비 제외)) * 100
+  const totalRevenue = totalPrice;
   const marginRate = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
 
   return {

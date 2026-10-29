@@ -52,7 +52,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     for (let i = 0; i < filteredOrders.length; i++) {
       const o = filteredOrders[i];
-      sales += (o.totalPrice + o.buyerShippingFee);
+      sales += o.totalPrice;
       productSales += o.totalPrice;
       buyerShipping += o.buyerShippingFee;
       settlement += o.settlementAmount;
@@ -130,7 +130,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         map.set(p, entry);
       }
       entry.orderCount += 1;
-      entry.sales += (o.totalPrice + o.buyerShippingFee);
+      entry.sales += o.totalPrice;
       entry.settlement += o.settlementAmount;
       entry.cost += o.totalCost;
       entry.netProfit += o.netProfit;
@@ -180,7 +180,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         map.set(date, entry);
       }
       entry.orderCount += 1;
-      entry.totalSales += (o.totalPrice + o.buyerShippingFee);
+      entry.totalSales += o.totalPrice;
       entry.productSales += o.totalPrice;
       entry.shippingRevenue += o.buyerShippingFee;
       entry.feeTotal += (o.feeAmount + (o.knowledgeShoppingFee || 0));
@@ -333,7 +333,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const o = orders[i];
       const pId = o.platform || 'smartstore';
       if (!map[pId]) map[pId] = { totalSales: 0, orderCount: 0 };
-      map[pId].totalSales += (o.totalPrice + o.buyerShippingFee);
+      map[pId].totalSales += o.totalPrice;
       map[pId].orderCount += 1;
     }
     return map;
@@ -367,7 +367,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         dateObj.siteSalesMap[pId] = pStat;
       }
 
-      const sales = o.totalPrice + o.buyerShippingFee;
+      const sales = o.totalPrice;
       pStat.sales += sales;
       pStat.orderCount += 1;
       pStat.netProfit += o.netProfit;
@@ -491,8 +491,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {formatKRW(totalSales, true)}
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-            <span>상품 {formatKRW(totalProductSales)}</span>
-            <span>배송비 {formatKRW(totalBuyerShipping)}</span>
+            <span>배송비 제외 물품가액</span>
+            <span>배송비 별도 {formatKRW(totalBuyerShipping)}</span>
           </div>
         </div>
 

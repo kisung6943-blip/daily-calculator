@@ -102,7 +102,7 @@ export interface SettlementSettings {
 export interface DailySummary {
   date: string;
   orderCount: number;
-  totalSales: number; // 총 매출액 (판매금액 + 고객배송비)
+  totalSales: number; // 총 매출액 (배송비 제외 순수 물품가액)
   productSales: number; // 순수 상품 판매금액
   shippingRevenue: number; // 고객 지불 배송비 총액
   feeTotal: number; // 총 수수료
