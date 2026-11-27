@@ -13,6 +13,85 @@ import {
 import { PLATFORMS } from '../data/initialData';
 import { PlatformType } from '../types';
 
+
+// Read-only export: never writes, deletes, migrates, or recalculates application data.
+const BACKUP_STORAGE_KEYS = ['seller_settlement_orders_v1', 'seller_settlement_costs_v1', 'seller_settlement_settings_v1'];
+
+async function readSettlementBackupSnapshot() {
+  if (!indexedDB.databases) throw new Error('이 브라우저에서는 안전한 백업 확인을 지원하지 않습니다. 최신 크롬에서 실행해 주세요.');
+  const databases = await indexedDB.databases();
+  let indexedDBData: { present: boolean; entries: { key: IDBValidKey; value: unknown }[] } = { present: false, entries: [] };
+  if (databases.some((db) => db.name === 'seller_settlement_db')) {
+    indexedDBData = await new Promise<typeof indexedDBData>((resolve, reject) => {
+      const request = indexedDB.open('seller_settlement_db');
+      // A concurrently removed database must not be recreated by a backup.
+      request.onupgradeneeded = () => { request.transaction?.abort(); };
+      request.onerror = () => reject(new Error('저장 데이터베이스를 읽지 못했습니다. 원본은 변경하지 않았습니다.'));
+      request.onblocked = () => reject(new Error('다른 탭에서 데이터베이스를 사용 중입니다. 잠시 후 다시 시도해 주세요.'));
+      request.onsuccess = () => {
+        const db = request.result;
+        db.onversionchange = () => db.close();
+        if (!db.objectStoreNames.contains('keyval')) {
+          db.close(); reject(new Error('예상한 저장소가 없어 백업을 중단했습니다.')); return;
+        }
+        try {
+          const transaction = db.transaction('keyval', 'readonly');
+          const store = transaction.objectStore('keyval');
+          const keys = store.getAllKeys();
+          const values = store.getAll();
+          transaction.oncomplete = () => {
+            db.close();
+            resolve({ present: true, entries: keys.result.map((key, index) => ({ key, value: values.result[index] })) });
+          };
+          transaction.onabort = transaction.onerror = () => { db.close(); reject(new Error('데이터 읽기에 실패해 백업을 중단했습니다.')); };
+        } catch (error) { db.close(); reject(error); }
+      };
+    });
+  }
+  const localStorageData = Object.fromEntries(BACKUP_STORAGE_KEYS.map((key) => [key, localStorage.getItem(key)]));
+  return { localStorage: localStorageData, indexedDB: indexedDBData };
+}
+
+async function downloadSettlementBackup(displayedOrders: number) {
+  // Compare complete raw snapshots to avoid exporting halfway through a pending save.
+  let current = await readSettlementBackupSnapshot();
+  let stable = false;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    const next = await readSettlementBackupSnapshot();
+    if (JSON.stringify(current) === JSON.stringify(next)) { current = next; stable = true; break; }
+    current = next;
+  }
+  if (!stable) throw new Error('저장 내용이 변경 중입니다. 입력을 마친 뒤 다시 백업해 주세요.');
+  const countArray = (value: unknown) => Array.isArray(value) ? value.length : 0;
+  const parseArrayCount = (raw: string | null) => { try { return raw ? countArray(JSON.parse(raw)) : 0; } catch { return 0; } };
+  const idbValue = (key: string) => current.indexedDB.entries.find((entry) => entry.key === key)?.value;
+  const counts = {
+    localStorageOrders: parseArrayCount(current.localStorage[BACKUP_STORAGE_KEYS[0]]),
+    indexedDBOrders: countArray(idbValue(BACKUP_STORAGE_KEYS[0])),
+    localStorageCosts: parseArrayCount(current.localStorage[BACKUP_STORAGE_KEYS[1]]),
+    indexedDBCosts: countArray(idbValue(BACKUP_STORAGE_KEYS[1])),
+    displayedOrders,
+  };
+  if (Math.max(counts.localStorageOrders, counts.indexedDBOrders) < displayedOrders) {
+    throw new Error('화면 주문 수보다 저장된 주문 수가 적습니다. 아직 백업이 안전하지 않아 중단했습니다. 잠시 후 다시 시도해 주세요.');
+  }
+  if (!counts.localStorageOrders && !counts.indexedDBOrders && !confirm('현재 브라우저에 저장된 주문이 0건입니다. 원래 데이터를 사용하던 크롬인지 확인해 주세요. 빈 주문 백업도 다운로드할까요?')) return;
+  const payload = JSON.stringify({ capturedAt: new Date().toISOString(), origin: location.origin, counts, raw: current });
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload));
+  const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  const file = JSON.stringify({ format: 'seller-settlement-raw-backup', version: 1, sha256, payload }, null, 2);
+  const url = URL.createObjectURL(new Blob([file], { type: 'application/json;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'ESliving-full-backup-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  alert('전체 백업 파일 다운로드를 요청했습니다. 다운로드 폴더에 JSON 파일이 있는지 확인해 주세요.\n주문: IndexedDB ' + counts.indexedDBOrders + '건 / localStorage ' + counts.localStorageOrders + '건\n원가: IndexedDB ' + counts.indexedDBCosts + '건 / localStorage ' + counts.localStorageCosts + '건\n읽은 시점의 두 저장소 원본과 설정을 담았습니다. 입력을 멈춘 상태에서 파일을 확인해 주세요. 원본 데이터는 변경하지 않았습니다.\n이 파일에는 주문 정보가 포함될 수 있으니 안전하게 보관해 주세요.');
+}
+
 interface HeaderProps {
   currentTab: 'dashboard' | PlatformType | 'cost_master';
   onSelectTab: (tab: 'dashboard' | PlatformType | 'cost_master') => void;
@@ -86,6 +165,22 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Download className="w-4 h-4 mr-1.5 text-slate-600" />
               정산 엑셀 다운로드
+            </button>
+
+            <button
+              id="btn-full-backup"
+              onClick={async (event) => {
+                const button = event.currentTarget;
+                button.disabled = true;
+                try { await downloadSettlementBackup(totalOrdersCount); }
+                catch (error) { alert('백업 실패: ' + (error instanceof Error ? error.message : String(error))); }
+                finally { button.disabled = false; }
+              }}
+              title="주문·원가·설정의 두 저장소 원본을 JSON으로 백업합니다. 기존 데이터는 변경하지 않습니다."
+              className="inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-medium bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <Download className="w-4 h-4 mr-1.5 text-slate-600" />
+              전체 백업
             </button>
 
             <button
