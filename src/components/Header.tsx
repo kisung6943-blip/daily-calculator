@@ -1,3 +1,4 @@
+import { VercelCloudPanel } from './VercelCloudPanel';
 import React from 'react';
 import { 
   BarChart3, 
@@ -182,6 +183,8 @@ export const Header: React.FC<HeaderProps> = ({
               <Download className="w-4 h-4 mr-1.5 text-slate-600" />
               전체 백업
             </button>
+
+            <VercelCloudPanel readSnapshot={readSettlementBackupSnapshot} displayedOrders={totalOrdersCount} />
 
             <button
               id="btn-cost-master-top"
